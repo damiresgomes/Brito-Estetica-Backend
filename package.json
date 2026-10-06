@@ -1,0 +1,32 @@
+{
+  "name": "brito-estetica-backend",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/damiresgomes/Brito-Estetica-Backend#readme",
+  "bugs": {
+    "url": "https://github.com/damiresgomes/Brito-Estetica-Backend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/damiresgomes/Brito-Estetica-Backend.git"
+  },
+  "license": "ISC",
+  "author": "Damires Gomes e Cristiani Budnik",
+  "type": "commonjs",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
