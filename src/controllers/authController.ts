@@ -21,13 +21,13 @@ export class AuthController {
     const usuario =  await usuarioRepository.buscarPorEmail(email);
 
     if (!usuario) {
-      return response.status(401).json({ message: "Usuário inválido!" });
+      return response.status(401).json({ message: "Dados inválidos!" });
     }
 
     const senhaOk = await bcrypt.compare(senha, usuario.senha);
 
     if (!senhaOk) {
-      return response.status(401).json({ message: "Senha inválida!"});
+      return response.status(401).json({ message: "Dados inválidos!"});
     }
 
     const secretSenha = process.env.JWT_SECRET;
