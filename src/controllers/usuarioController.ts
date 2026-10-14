@@ -1,28 +1,17 @@
-import { Request, Response } from "express";
-import { emailValido } from "../validators/email";
-import { senhaForte } from "../validators/password";
-import { cpfValido } from "../validators/cpf";
+import { FastifyReply, FastifyRequest } from "fastify";
+import { cadastroUsuarioSchema } from "../schemas/usuarioSchema";
+import { UsuarioService } from "../services/usuarioService";
 
 export class UsuarioController {
-    async cadastrarUsuario(request: Request, response: Response) {
-        const { nome, email, senha, cpf, salario, datanascimento } = request.body ?? {};
+  constructor(private readonly usuarioService: UsuarioService) {}
 
-        if (!nome || !email || !senha || !cpf || salario === undefined || !datanascimento) {
-            return response.status(400).json({ message: "Todos os campos são obrigatórios" });
-        }
+  async cadastrar(request: FastifyRequest, reply: FastifyReply) {
+    const dados = cadastroUsuarioSchema.parse(request.body);
+    const { id } = await this.usuarioService.cadastrar(dados);
 
-        if (!emailValido(email)) {
-            return response.status(400).json({ message: "E-mail é inválido!"});
-        }
-
-        if (!senhaForte(senha)) {
-            return response.status(400).json({ message: "Senha sem os requisitos necessários! Use pelo menos 8 caracteres, letra maiúscula, número e símbolo."});
-        }
-
-        if (!cpfValido(cpf)) {
-            return response.status(400).json({ message: "CPF inválido! Revise o CPF."});
-        }
-
-        return response.status(201).json({ message: "Dados Válidos!"});
-    }
+    return reply.status(201).send({
+      message: "Usuário cadastrado com sucesso",
+      id,
+    });
+  }
 }

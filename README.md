@@ -1,505 +1,321 @@
-# Validações: e-mail e senha
+# Brito Estética — Back-end
 
-Regras de validação do back-end (Brito Estética) e onde cada uma é usada.
-
-## Resumo
-
-| Validação | Arquivo | Onde é usada | Status |
-|---|---|---|---|
-| Formato do e-mail (regex) | `src/validators/email.ts` | Login, cadastro| Feito |
-
-## Validação de e-mail
-
-**Arquivo:** `src/validators/email.ts`
-
-```ts
-export function emailValido(email: string): boolean {
-  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return regex.test(email);
-}
-```
-
-**O que a regex exige:** algo antes do `@`, um domínio, um ponto e um final (`algo@algo.algo`). Espaços e mais de um `@` são recusados.
-
-**Uso no login** (`src/controllers/authController.ts`), nesta ordem:
-1. Se faltar `email` ou `senha`: `400` com `"E-mail e senha são obrigatórios"`.
-2. Se `!emailValido(email)`: `400` com `"E-mail inválido"`.
-3. Se email e senha estiverem ok : `200` com `Login Recebido`.
-
-
-### Testes
-
-| E-mail | Esperado |
-|---|---|
-| `a@a.com` | válido |
-| `abc` | inválido |
-| `a@a` | inválido |
-| `a a@a.com` | inválido |
-| ausente | `400` "E-mail e senha são obrigatórios" |
-
-
-## Como testar
-
--- Rodar o servidor: `npm run dev` (deve exibir Servidor rodando na porta 3333).
-No Insomnia, enviar POST http://localhost:3333/api/auth/login com Body em JSON.
-
-## Teste	Body	Esperado
-
-- Campos completos	`{ "email": "a@a.com", "senha": "123" }`	200
-- Sem senha	`{ "email": "a@a.com" }`	400
-- Sem e-mail	`{ "senha": "123" }`	400
-- Corpo vazio	`{}`	400
-
-
-
-
-# Brito Estética — Back-end: documentação do que foi feito
+API REST em **Node.js + Fastify + TypeScript**, com banco **MySQL 8 em Docker**.
+Organizada em camadas e com validação via **Zod**.
 
 **Autoras:** Damires Gomes e Cristiani Budnik
-**Repositório:** `damiresgomes/Brito-Estetica-Backend`
 
 ---
 
 ## 1. Visão geral
 
-API REST em **Node.js + Express + TypeScript**, com banco **MySQL 8 rodando em container Docker**. O projeto parte de uma versão antiga em PHP; a lógica antiga é usada só como consulta, e o código novo é escrito do zero em TypeScript, organizado em camadas.
+Fluxo de uma requisição:
 
 ```
-Cliente (front / Thunder Client)
-   -> app.ts            (express.json, rotas)
-   -> routes            (endereço -> controller)
-   -> controllers       (recebe o pedido e responde)
-   -> services          (regras de negócio)      [a criar]
-   -> repositories      (acesso ao MySQL)         [a criar]
+Cliente (front / Insomnia / Thunder Client)
+   -> app.ts          (cria o Fastify, plugins e rotas)
+   -> routes/         (URL + método HTTP -> controller)
+   -> controllers/    (valida a entrada com Zod e devolve a resposta)
+   -> services/       (regras de negócio)
+   -> repositories/   (único lugar que fala com o MySQL)
    -> MySQL (Docker)
 ```
 
-### Status resumido
+Cada camada tem **uma responsabilidade**:
 
-| Item | Situação |
+| Pasta | Responsabilidade |
 |---|---|
-| Ambiente (npm, TypeScript, Git) | Concluído |
-| Servidor Express | Concluído |
-| Rota e controller de login (recebe e valida campos) | Concluído |
-| Validação de e-mail por regex | Concluído |
-| MySQL em Docker + conexão da API | Concluído |
-| Erros customizados e `errorHandler` | Pendente |
-| `authService` | Pendente |
-| `userRepository.findByEmail` | Pendente |
-| Verificação de usuário existente (401) | Pendente |
-| bcrypt (comparação da senha) | Pendente |
-| JWT | Pendente |
+| `config/` | Conexão com o banco e validação das variáveis de ambiente |
+| `routes/` | Liga endereço + método HTTP ao controller |
+| `controllers/` | Valida a entrada (Zod) e monta a resposta HTTP. |
+| `services/` | Regras de negócio (duplicidade, senha, token) |
+| `repositories/` | Acesso ao MySQL (prepared statements) |
+| `schemas/` | Schemas de validação do Zod |
+| `middlewares/` | Autenticação (JWT) e tratamento de erros |
+| `errors/` | Erros de domínio |
+| `validators/` | Funções auxiliares (ex.: cálculo de CPF) |
+| `types/` | Tipos e interfaces do domínio |
+
+**`app.ts` x `server.ts`:** `app.ts` monta o servidor (plugins + rotas) e exporta
+a função `buildApp`; `server.ts` apenas liga na porta. Assim dá para testar a API
+sem subir o servidor.
 
 ---
 
 ## 2. Tecnologias
 
-| Tecnologia | Versão | Uso |
-|---|---|---|
-| Node.js | 24.x | Ambiente de execução |
-| TypeScript | ^7.0.2 | Linguagem (modo `strict`) |
-| tsx | ^4.23.15 | Roda `.ts` em desenvolvimento |
-| Express | ^5.2.1 | Servidor HTTP e rotas |
-| dotenv | ^18.0.5 | Leitura do `.env` |
-| mysql2 | atual | Driver do MySQL (com pool) |
-| MySQL | 8.0 (Docker) | Banco de dados |
-| Docker Compose | — | Sobe o MySQL com volume |
-
-Tipos: `@types/node`, `@types/express`. O `mysql2` já traz os próprios tipos.
-
-**Como o TypeScript roda no Node:** o Node só entende JavaScript. Em desenvolvimento, o `tsx` traduz o `.ts` na hora (`npm run dev`). Para produção, o `tsc` converte tudo para `.js` na pasta `dist/` (`npm run build`), e o Node roda `dist/server.js` (`npm start`).
+| Tecnologia | Uso |
+|---|---|
+| TypeScript (`strict`) | Tipagem sem `any` |
+| Fastify v5 | Servidor HTTP e rotas |
+| Zod v4 | Validação de entrada e das variáveis de ambiente |
+| bcrypt | Hash e comparação de senhas |
+| jsonwebtoken | Geração/verificação do token JWT |
+| mysql2 | Driver do MySQL (com pool) |
+| dotenv | Leitura do `.env` |
+| @fastify/cors | Cabeçalhos de CORS |
+| @fastify/helmet | Cabeçalhos de segurança |
+| tsx | Executa `.ts` em desenvolvimento |
+| MySQL 8 (Docker) | Banco de dados |
 
 ---
 
-## 3. Estrutura do projeto
+## 3. Por que dessas escolhas
 
-### Existente
+### 3.1 Fastify no lugar do Express
+
+| Aspecto | Express | Fastify |
+|---|---|---|
+| Handler | `(req, res)` | `(request, reply)` |
+| Erros em async | Precisa de `try/catch`/wrapper | Captura sozinho e envia ao `setErrorHandler` |
+| Plugins | Terceiros variados | Oficiais (`@fastify/cors`, `@fastify/helmet`) |
+| Performance | Base | Roteamento otimizado |
+
+O maior ganho aqui foi o **tratamento de erro central**: com um único
+`setErrorHandler` tratamos `ZodError` (400), `AppError` (401/403/409) e erros
+inesperados (500), sem repetir `try/catch` em cada rota.
+
+### 3.2 Zod para validação
+
+Antes havia funções soltas (`emailValido`, `senhaForte`) chamadas em pontos
+diferentes. Com Zod:
+
+- A regra vira um **schema declarativo** (`schemas/`).
+- O schema **infere o tipo** TypeScript (`z.infer`), eliminando `request.body: any`.
+- As mensagens de erro ficam em pt-BR, junto da regra.
+- O **mesmo Zod valida as variáveis de ambiente** (`config/env.ts`), fazendo o
+  servidor parar com mensagem clara se faltar alguma.
+
+O algoritmo de CPF (que é cálculo, não formato) continua em `validators/cpf.ts`,
+mas é chamado dentro de um `.refine()` do schema.
+
+### 3.3 Camada `services`
+
+Tirar a regra de negócio do controller. O controller só valida a entrada e
+devolve a resposta; o service decide (e-mail em uso? senha correta? usuário ativo?).
+Isso deixa o código testável e cada peça pequena.
+
+### 3.4 Camada de erros
+
+`AppError` representa um erro **esperado** do domínio, já com o status HTTP.
+O `errorHandler` distingue:
+
+- `ZodError` -> `400` com a lista de campos inválidos.
+- `AppError` -> status definido no próprio erro.
+- Qualquer outro -> `500` genérico (o detalhe fica só no log, não vai pro cliente).
+
+---
+
+## 4. Estrutura do projeto
 
 ```
 Brito-Estetica-Backend/
 ├── src/
 │   ├── config/
-│   │   └── database.ts
+│   │   ├── database.ts
+│   │   └── env.ts
 │   ├── controllers/
 │   │   ├── authController.ts
-│   │   ├── categoriaController.ts
-│   │   ├── servicoController.ts
 │   │   └── usuarioController.ts
+│   ├── errors/
+│   │   └── AppError.ts
 │   ├── middlewares/
-│   │   └── authMiddleware.ts
+│   │   ├── authMiddleware.ts
+│   │   └── errorHandler.ts
+│   ├── repositories/
+│   │   └── usuarioRepository.ts
 │   ├── routes/
 │   │   ├── authRoutes.ts
-│   │   ├── categoriaRoutes.ts
-│   │   ├── servicoRoutes.ts
 │   │   └── usuarioRoutes.ts
+│   ├── schemas/
+│   │   ├── authSchema.ts
+│   │   └── usuarioSchema.ts
+│   ├── services/
+│   │   ├── authService.ts
+│   │   └── usuarioService.ts
+│   ├── types/
+│   │   └── usuario.ts
 │   ├── validators/
-│   │   └── email.ts
+│   │   └── cpf.ts
 │   ├── app.ts
 │   └── server.ts
 ├── docker/
-│   └── init/            (scripts .sql executados na criação do banco)
+│   └── init/ (scripts .sql executados na criação do banco)
 ├── docker-compose.yml
-├── .env                 (não vai para o Git)
-├── .env.example         (vai para o Git)
-├── .gitignore
+├── .env.example
 ├── package.json
 ├── tsconfig.json
 └── README.md
 ```
 
-### Previsto (a criar conforme as tarefas avançam)
+---
 
-`entities/`, `types/`, `errors/`, `repositories/`, `services/` e mais validadores (`password.ts`, `cpf.ts`).
+## 5. Como rodar
 
-### Responsabilidade de cada pasta
+1. Instalar **Node.js** e o **Docker Desktop** (abrir e esperar "Engine running").
+2. Instalar dependências:
+   ```powershell
+   npm install
+   ```
+3. Criar o `.env`: copiar `.env.example`, renomear para `.env` e preencher.
+4. Subir o banco:
+   ```powershell
+   docker compose up -d
+   docker compose ps
+   ```
+   Esperar o MySQL ficar pronto (`docker compose logs mysql` mostra `ready for connections`).
+5. Rodar a API:
+   ```powershell
+   npm run dev
+   ```
+6. Verificação de tipos antes de commitar:
+   ```powershell
+   npx tsc --noEmit
+   ```
 
-| Pasta | Responsabilidade |
+| Script | O que faz |
 |---|---|
-| `config/` | Conexão com o banco e variáveis de ambiente |
-| `controllers/` | Recebem `request`, chamam o service e devolvem `response`. Sem regra de negócio |
-| `routes/` | Ligam endereço e método HTTP ao controller |
-| `middlewares/` | Autenticação (JWT) e tratamento de erros |
-| `validators/` | Funções que respondem verdadeiro/falso (e-mail, senha, CPF) |
-| `services/` *(a criar)* | Regras de negócio |
-| `repositories/` *(a criar)* | Único lugar que fala com o MySQL |
-| `entities/`, `types/`, `errors/` *(a criar)* | Classes de domínio, interfaces/generics e exceções customizadas |
-
-**Separação `app.ts` x `server.ts`:** `app.ts` monta o servidor (middlewares e rotas) e exporta; `server.ts` só liga na porta. Assim o `app` pode ser testado sem subir o servidor.
+| `npm run dev` | Executa o `.ts` direto, reiniciando ao salvar |
+| `npm run build` | Compila para `.js` em `dist/` |
+| `npm start` | Roda o código compilado |
 
 ---
 
-## 4. Configuração do projeto
+## 6. Variáveis de ambiente
 
-### 4.1 `package.json`
-
-```json
-{
-  "name": "brito-estetica-backend",
-  "version": "1.0.0",
-  "license": "ISC",
-  "author": "Damires Gomes e Cristiani Budnik",
-  "type": "commonjs",
-  "main": "dist/server.js",
-  "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js"
-  }
-}
-```
-
-(demais campos e dependências omitidos aqui; o arquivo real também lista `dependencies` e `devDependencies`.)
-
-| Script | O que faz | Cria `dist/`? |
-|---|---|---|
-| `npm run dev` | Executa o `.ts` direto, reiniciando ao salvar | Não |
-| `npm run build` | Compila para `.js` em `dist/` | Sim |
-| `npm start` | Roda o código compilado | Não |
-
-### 4.2 `tsconfig.json`
-
-```json
-{
-  "compilerOptions": {
-    "rootDir": "./src",
-    "outDir": "./dist",
-    "target": "ES2022",
-    "module": "Node16",
-    "moduleResolution": "Node16",
-    "types": ["node"],
-    "esModuleInterop": true,
-    "strict": true,
-    "sourceMap": true,
-    "skipLibCheck": true
-  },
-  "include": ["src"]
-}
-```
-
-- `strict: true` garante a checagem rígida de tipos (sem `any`).
-- `types: ["node"]` liga os tipos do Node.
-- `module` e `moduleResolution` em `Node16` resolvem o erro TS2882 do `import "dotenv/config"`. O `package.json` continua com `"type": "commonjs"`.
-- Foi removido o `verbatimModuleSyntax` do arquivo padrão do `tsc --init`, que não combina com projeto CommonJS.
-
-### 4.3 `.gitignore`
-
-```
-node_modules
-dist
-.env
-arquivos_proj3/
-```
-
-Cuidado para não usar `.env*`, pois isso esconderia também o `.env.example`.
-
-### 4.4 Variáveis de ambiente
-
-`.env` (valores reais, **fora do Git**):
+`.env` (não vai para o Git):
 
 ```
 PORT=3333
-DB_HOST="127.0.0.1"
+DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_USER="<usuario>"
-DB_PASS="<senha_do_usuario>"
-DB_NAME="<nome_do_banco>"
-DB_ROOT_PASSWORD="<senha_do_root>"
-JWT_SECRET="<texto_longo_e_aleatorio>"   (usado na etapa do JWT)
+DB_USER=<usuario>
+DB_PASS=<senha>
+DB_NAME=<banco>
+DB_ROOT_PASSWORD=<senha_do_root>
+JWT_SECRET=<texto_longo_e_aleatorio>
 ```
 
-`.env.example` (vai ao Git): as mesmas chaves, **sem os valores secretos**.
+Regras:
+- Sem espaço depois do `=`.
+- Nunca subir senhas para o Git (o `.env` está no `.gitignore`).
+- Os nomes precisam ser iguais aos usados em `config/env.ts`.
 
-| Chave | Quem usa |
-|---|---|
-| `DB_ROOT_PASSWORD` | Docker (`MYSQL_ROOT_PASSWORD`). A API nunca usa |
-| `DB_USER`, `DB_PASS`, `DB_NAME` | Docker (cria o usuário e o banco) **e** a API |
-| `DB_HOST`, `DB_PORT` | API |
-| `JWT_SECRET` | `authService`, ao gerar o token |
-
-Regras: sem espaço depois do `=`; os nomes no `.env` e onde são usados precisam ser idênticos; nunca colocar senhas em código, README, commits, prints ou chat.
+`config/env.ts` valida tudo com Zod no start. Se faltar alguma variável, o
+servidor imprime os erros e encerra. Assim fica mais fácil de identificar qual é o erro para fazer a manutenção.
 
 ---
 
-## 5. Código implementado
+## 7. Endpoints
 
-### 5.1 `src/app.ts`
+### `POST /api/auth/login` (pública)
 
-```ts
-import express from "express";
-import authRoutes from "./routes/authRoutes";
-
-const app = express();
-
-app.use(express.json());              // 1º: aprende a ler JSON
-app.use("/api/auth", authRoutes);     // 2º: depois as rotas
-
-export default app;
-```
-
-A ordem importa: se as rotas vierem antes do `express.json()`, o `request.body` chega `undefined`.
-
-### 5.2 `src/server.ts`
-
-```ts
-import app from "./app";
-
-app.listen(3333, () => {
-  console.log("Servidor rodando na porta 3333");
-});
-```
-
-### 5.3 `src/controllers/authController.ts`
-
-```ts
-import { Request, Response } from "express";
-import { emailValido } from "../validators/email";
-
-export class AuthController {
-  login(request: Request, response: Response) {
-    const { email, senha } = request.body ?? {};
-
-    if (!email || !senha) {
-      return response.status(400).json({ message: "E-mail e senha são obrigatórios" });
-    }
-
-    if (!emailValido(email)) {
-      return response.status(400).json({ message: "E-mail inválido" });
-    }
-
-    return response.status(200).json({ message: "Login recebido" });
-  }
-}
-```
-
-A checagem de campos ausentes vem **antes** da de formato. O `?? {}` evita que um pedido sem corpo derrube a rota.
-
-### 5.4 `src/routes/authRoutes.ts`
-
-```ts
-import { Router } from "express";
-import { AuthController } from "../controllers/authController";
-
-const authRoutes = Router();
-const authController = new AuthController();
-
-authRoutes.post("/login", (request, response) => authController.login(request, response));
-
-export default authRoutes;
-```
-
-A função de seta evita perder o contexto (`this`) da classe.
-
-### 5.5 `src/validators/email.ts`
-
-```ts
-export function emailValido(email: string): boolean {
-  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return regex.test(email);
-}
-```
-
-Exige algo antes do `@`, um domínio, um ponto e um final (`algo@algo.algo`). Reaproveitável no cadastro. Na edição de usuário o e-mail é imutável, então não é validado ali.
-
-### 5.6 `src/config/database.ts`
-
-```ts
-import "dotenv/config";
-import mysql from "mysql2/promise";
-
-export const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
-});
-```
-
-O `pool` é um grupo de conexões reaproveitadas. Será usado pelos repositórios, e nenhuma outra camada fala com o banco.
-
----
-
-## 6. Rota de login (contrato com o front-end)
-
-| Método | Endereço | Autenticação |
-|---|---|---|
-| `POST` | `/api/auth/login` | Pública |
-
-**Requisição** (`Content-Type: application/json`):
-
+Requisição:
 ```json
-{ "email": "usuario@email.com", "senha": "123456" }
+{ "email": "admin@gmail.com", "senha": "Senha@123" }
 ```
-
-**Respostas hoje:**
 
 | Status | Quando | Corpo |
 |---|---|---|
-| `200` | e-mail válido e senha enviados | `{ "message": "Login recebido" }` |
-| `400` | falta `email` ou `senha` | `{ "message": "E-mail e senha são obrigatórios" }` |
-| `400` | e-mail com formato inválido | `{ "message": "E-mail inválido" }` |
+| `200` | credenciais corretas e usuário ativo | `{ "token": "..." }` |
+| `400` | campo faltando ou e-mail inválido | `{ "message": "Erro de validação", "erros": [ ... ] }` |
+| `401` | usuário não existe ou senha errada | `{ "message": "Dados inválidos!" }` |
+| `403` | usuário inativo | `{ "message": "Usuário inativo" }` |
+| `500` | erro inesperado | `{ "message": "Erro interno do servidor" }` |
 
+O token JWT expira em 1h e usa o algoritmo `HS256`.
 
-### Como testar (Imsomnia)
+### `POST /api/usuarios` (pública)
 
-`POST http://localhost:3333/api/auth/login`, aba **Body**, tipo **JSON**:
+Requisição:
+```json
+{
+  "nome": "Maria Silva",
+  "email": "maria@email.com",
+  "senha": "Senha@123",
+  "cpf": "111.444.777-35",
+  "salario": 3500,
+  "datanascimento": "1990-05-20"
+}
+```
 
-| Body | Esperado |
-|---|---|
-| `{ "email": "a@a.com", "senha": "123" }` | 200 |
-| `{ "email": "a@a.com" }` | 400 |
-| `{ "senha": "123" }` | 400 |
-| `{ "email": "abc", "senha": "123" }` | 400 "E-mail inválido" |
-| `{ "email": "a@a", "senha": "123" }` | 400 |
-| sem corpo | 400 |
+| Status | Quando | Corpo |
+|---|---|---|
+| `201` | cadastrado | `{ "message": "Usuário cadastrado com sucesso", "id": 10 }` |
+| `400` | dados inválidos | `{ "message": "Erro de validação", "erros": [ ... ] }` |
+| `409` | e-mail ou CPF já cadastrado | `{ "message": "E-mail já cadastrado" }` |
+| `500` | erro inesperado | `{ "message": "Erro interno do servidor" }` |
 
-O JSON do teste é digitado no Thunder Client; ele simula o que o front enviará e não é arquivo do projeto.
+Regras de validação:
+- `email`: formato `algo@algo.algo`; é convertido para minúsculas.
+- `senha`: mínimo 8 e máximo 72 caracteres, com maiúscula, minúscula, número e símbolo.
+- `cpf`: dígitos verificadores validados; gravado apenas com números.
+- `salario`: número `>= 0` (no JSON, ex.: `3500`, não `"3500"`).
+- `datanascimento`: formato `AAAA-MM-DD`.
 
 ---
 
-## 7. Banco de dados no Docker
+## 8. Segurança
 
-### 7.1 `docker-compose.yml`
-
-```yaml
-services:
-  mysql:
-    image: mysql:8.0
-    container_name: brito-mysql
-    restart: unless-stopped
-    ports:
-      - "3306:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASS}
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./docker/init:/docker-entrypoint-initdb.d
-
-volumes:
-  mysql_data:
-```
-
-| Item | Para que serve |
+| Item | Como |
 |---|---|
-| `volumes: mysql_data` | Guarda os dados mesmo se o container for apagado |
-| `./docker/init` | Todo `.sql` ali roda **uma vez**, na primeira criação do banco |
-| `${...}` | Lê as variáveis do `.env`, sem repetir senhas no arquivo |
+| Senha | Nunca em texto puro: `bcrypt.hash(senha, 10)` |
+| Login | Mensagem genérica ("Dados inválidos!") e comparação com hash fictício quando o usuário não existe (mitiga *timing attack*) |
+| Usuário inativo | Bloqueado (`403`) mesmo com senha correta |
+| JWT | `HS256` explícito, `expiresIn: "1h"`, segredo em `JWT_SECRET` |
+| Cabeçalhos | `@fastify/helmet` |
+| CORS | `@fastify/cors` |
+| SQL | Sempre prepared statements (`pool.execute` com `?`) |
+| Erros | Detalhes inesperados não vão para o cliente (só para o log) |
 
-**YAML:** cada nível entra 2 espaços à direita do anterior, sem Tab, e listas usam `- ` (traço **e espaço**).
+---
 
-### 7.2 Comandos
+## 9. Banco de dados
+
+- MySQL 8 em Docker, com volume `mysql_data` (dados persistem).
+- `docker/init/*.sql` roda **uma vez**, na primeira criação do volume.
+- A tabela `usuario` agora tem `UNIQUE` em `email` e `cpf`, garantindo
+  integridade no banco além da checagem feita no service.
 
 | Ação | Comando |
 |---|---|
 | Subir | `docker compose up -d` |
 | Ver estado | `docker compose ps` |
 | Ver logs | `docker compose logs mysql --tail 20` |
-| Listar tabelas | `docker exec -it brito-mysql mysql -u <usuario> -p <banco> -e "SHOW TABLES;"` |
-| Parar (mantém dados) | `docker compose down` |
 | Recriar do zero (apaga dados) | `docker compose down -v` e depois `docker compose up -d` |
 
-No prompt `Enter password:` o terminal **não mostra** o que é digitado; isso é normal.
-
-### 7.3 Carga inicial do banco
-
-1. Exportar o banco antigo em `.sql` (phpMyAdmin: Exportar, formato SQL).
-2. Salvar em `docker/init/`.
-3. Subir o container. O MySQL executa o arquivo na primeira vez.
-
-Observações:
-- O `.sql` só roda com o volume **vazio**. Para refazer: `docker compose down -v` e `docker compose up -d`.
-- O usuário e a senha são gravados **na primeira criação do volume**. Mudar o `.env` depois não altera o que já foi gravado.
-- `DB_USER` não pode ser `root`.
-- Não versionar dumps com dados reais de pessoas.
-- O MySQL do XAMPP ocupa a mesma porta 3306; deve ficar desligado.
-
-### 7.4 Situação
-
-O container `brito-mysql` sobe, o `.sql` está em `docker/init/` e a conexão da API com o banco foi confirmada.
+> O `.sql` só roda com o volume vazio. Mudar o `.env` depois não altera o que já
+> foi gravado no volume.
 
 ---
 
-## 8. Como rodar o projeto do zero
+## 10. Decisões (o quê / por quê)
 
-Para qualquer pessoa da dupla, depois de clonar:
-
-1. Instalar **Node.js** e o **Docker Desktop** (abrir e esperar `Engine running`).
-2. Instalar as dependências:
-   ```powershell
-   npm install
-   ```
-3. Criar o `.env`: copiar o `.env.example`, renomear para `.env` e preencher os valores (cada pessoa define as próprias senhas).
-4. Colocar o `.sql` em `docker/init/` (se ainda não estiver no repositório).
-5. Subir o banco:
-   ```powershell
-   docker compose up -d
-   docker compose ps
-   ```
-   Esperar uns 30 segundos até o MySQL terminar de iniciar (`docker compose logs mysql` mostra `ready for connections`).
-6. Rodar a API:
-   ```powershell
-   npm run dev
-   ```
-   Deve aparecer `Servidor rodando na porta 3333`.
-7. Testar a rota no Thunder Client (seção 6).
-8. Verificação de tipos antes do commit:
-   ```powershell
-   npx tsc --noEmit
-   ```
-
----
-
-## 9. Decisões e motivos
-
-| Decisão | Motivo |
+| Decisão | Por quê |
 |---|---|
-| TypeScript com `strict` | Atende ao critério de tipagem sem `any` |
-| Pastas por responsabilidade | SOLID e organização: cada peça é pequena e testável |
-| `app.ts` separado de `server.ts` | Montar e ligar são tarefas diferentes |
-| `tsx` em desenvolvimento, `tsc` no build | Rapidez no dia a dia; JavaScript compilado em produção |
-| MySQL em Docker com volume | Mesmo ambiente para a dupla; dados persistem |
-| `.env` ignorado e `.env.example` versionado | Segredos fora do Git, com modelo para a dupla |
-| Validação de e-mail em `validators/` | Reaproveitada no login e no cadastro |
+| Fastify no lugar do Express | `setErrorHandler` central, plugins oficiais, tipagem e performance |
+| Zod para validar | Uma só fonte de regra, mensagens em pt-BR e tipos inferidos |
+| Zod também nas variáveis de ambiente | Falha cedo e com mensagem clara |
+| Camada `services` | Controller só valida/responde; regra de negócio isolada e testável |
+| `AppError` | Separar erro esperado (401/403/409) de erro inesperado (500) |
+| `@fastify/helmet` + `@fastify/cors` | Cabeçalhos de segurança e CORS |
+| JWT `HS256` explícito | Evita *algorithm confusion* |
+| Hash fictício no login | Tempo de resposta parecido exista ou não o e-mail |
+| Checar `ativo` | Impede login de usuário desativado |
+| `UNIQUE` em email/cpf | Integridade garantida pelo banco |
+| `pool.execute` | Prepared statements (mais seguro) |
+| `REPLACE` no `buscarPorCpf` | Casa CPFs antigos gravados com pontos/traço |
+| `validators/cpf.ts` mantido | É cálculo, não formato; usado dentro de um `.refine` do Zod |
+
+---
+
+## 11. Teste rápido (Insomnia)
+
+`POST http://localhost:3333/api/auth/login`, Body **JSON**:
+
+| Body | Esperado |
+|---|---|
+| `{ "email": "a@a.com", "senha": "123" }` | `401` (usuário não existe) |
+| `{ "email": "a@a.com" }` | `400` (senha obrigatória) |
+| `{ "email": "abc", "senha": "123" }` | `400` (e-mail inválido) |
+| `{ "email": "admin@gmail.com", "senha": "<correta>" }` | `200` com `token` |

@@ -1,10 +1,12 @@
-import "dotenv/config";
 import mysql from "mysql2/promise";
+import { env } from "./env";
 
 export const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
+  host: env.DB_HOST,
+  port: env.DB_PORT,
+  user: env.DB_USER,
+  password: env.DB_PASS,
+  database: env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
 });

@@ -274,7 +274,7 @@ CREATE TABLE `usuario` (
 INSERT INTO `usuario` (`id`, `nome`, `email`, `senha`, `cpf`, `salario`, `datanascimento`, `ativo`) VALUES
 (1, 'Administrador', 'admin@gmail.com', '$2y$10$UlRENRQON2SjaSYAxmYs4OydOa5NkiJTqdZMbKiJbH75yZ5Xfebom', '094.650.100-90', 3500, '1980-07-22', 'Sim'),
 (2, 'Bill Gates', 'teste@teste.com', '$2y$10$ineMFivFCCHdP3gGGWfoR.RRqt.3jYDbIi.mXDPLjIM0vvYps9j7G', '424.454.180-20', 3500, '2000-10-20', 'Sim'),
-(9, 'teste', 'teste@teste.com', '$2y$10$wl.IteWzPTk3Sc/5SL2cCuL3mrh8yqwHHLCGF4/e3oUJD6lcZZyUW', '540.998.448-03', 5240, '2007-11-12', 'Sim');
+(9, 'teste', 'teste2@teste.com', '$2y$10$wl.IteWzPTk3Sc/5SL2cCuL3mrh8yqwHHLCGF4/e3oUJD6lcZZyUW', '540.998.448-03', 5240, '2007-11-12', 'Sim');
 
 -- --------------------------------------------------------
 
@@ -365,7 +365,9 @@ ALTER TABLE `servicos`
 -- Índices de tabela `usuario`
 --
 ALTER TABLE `usuario`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_usuario_email` (`email`),
+  ADD UNIQUE KEY `uq_usuario_cpf` (`cpf`);
 
 --
 -- AUTO_INCREMENT para tabelas despejadas
