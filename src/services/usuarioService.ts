@@ -4,6 +4,7 @@ import { UsuarioRepository } from "../repositories/usuarioRepository";
 import { CadastroUsuarioInput } from "../schemas/usuarioSchema";
 import { normalizarCpf } from "../validators/cpf";
 
+
 export class UsuarioService {
   constructor(private readonly usuarioRepository: UsuarioRepository) {}
 

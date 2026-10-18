@@ -1,19 +1,23 @@
-import Fastify from "fastify";
-import cors from "@fastify/cors";
-import helmet from "@fastify/helmet";
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
 import { authRoutes } from "./routes/authRoutes";
 import { usuarioRoutes } from "./routes/usuarioRoutes";
 import { errorHandler } from "./middlewares/errorHandler";
 
 export function buildApp() {
-  const app = Fastify({ logger: true });
+  const app = express();
 
-  app.register(cors, { origin: true });
-  app.register(helmet);
-  app.setErrorHandler(errorHandler);
+  app.use(helmet());
+  app.use(cors({ origin: true }));
+  app.use(morgan("dev"));
+  app.use(express.json());
 
-  app.register(authRoutes, { prefix: "/api/auth" });
-  app.register(usuarioRoutes, { prefix: "/api/usuarios" });
+  app.use("/api/auth", authRoutes());
+  app.use("/api/usuarios", usuarioRoutes());
+
+  app.use(errorHandler);
 
   return app;
 }

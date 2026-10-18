@@ -1,6 +1,6 @@
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { pool } from "../config/database";
-import { NovoUsuario, Usuario } from "../types/usuario";
+import { NovoUsuario, Usuario } from "../entities/usuario";
 
 interface UsuarioRow extends RowDataPacket, Usuario {}
 

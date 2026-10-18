@@ -3,10 +3,11 @@ import { env } from "./config/env";
 
 const app = buildApp();
 
-app
-  .listen({ port: env.PORT, host: "0.0.0.0" })
-  .then((endereco) => console.log(`Servidor rodando em ${endereco}`))
-  .catch((erro) => {
-    app.log.error(erro);
-    process.exit(1);
-  });
+const servidor = app.listen(env.PORT, "0.0.0.0", () => {
+  console.log(`Servidor rodando na porta ${env.PORT}`);
+});
+
+servidor.on("error", (erro) => {
+  console.error(erro);
+  process.exit(1);
+});

@@ -1,4 +1,4 @@
-import { FastifyReply, FastifyRequest } from "fastify";
+import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 import { AppError } from "../errors/AppError";
@@ -8,15 +8,16 @@ export interface TokenPayload {
   email: string;
 }
 
-declare module "fastify" {
-  interface FastifyRequest {
+declare module "express-serve-static-core" {
+  interface Request {
     usuario?: TokenPayload;
   }
 }
 
 export async function authMiddleware(
-  request: FastifyRequest,
-  _reply: FastifyReply
+  request: Request,
+  _response: Response,
+  next: NextFunction
 ): Promise<void> {
   const cabecalho = request.headers.authorization;
 
@@ -31,6 +32,7 @@ export async function authMiddleware(
       algorithms: ["HS256"],
     });
     request.usuario = payload as TokenPayload;
+    next();
   } catch {
     throw new AppError(401, "Token inválido ou expirado");
   }

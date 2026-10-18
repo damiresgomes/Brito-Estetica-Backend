@@ -1,14 +1,19 @@
-import { FastifyError, FastifyReply, FastifyRequest } from "fastify";
+import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { AppError } from "../errors/AppError";
 
 export function errorHandler(
-  error: FastifyError | AppError | ZodError,
-  request: FastifyRequest,
-  reply: FastifyReply
-) {
+  error: unknown,
+  _request: Request,
+  response: Response,
+  next: NextFunction
+): Response | void {
+  if (response.headersSent) {
+    return next(error);
+  }
+
   if (error instanceof ZodError) {
-    return reply.status(400).send({
+    return response.status(400).json({
       message: "Erro de validação",
       erros: error.issues.map((issue) => ({
         campo: issue.path.join("."),
@@ -18,9 +23,9 @@ export function errorHandler(
   }
 
   if (error instanceof AppError) {
-    return reply.status(error.statusCode).send({ message: error.message });
+    return response.status(error.statusCode).json({ message: error.message });
   }
 
-  request.log.error(error);
-  return reply.status(500).send({ message: "Erro interno do servidor" });
+  console.error(error);
+  return response.status(500).json({ message: "Erro interno do servidor" });
 }

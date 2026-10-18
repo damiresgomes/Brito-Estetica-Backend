@@ -5,7 +5,7 @@ import { AppError } from "../errors/AppError";
 import { UsuarioRepository } from "../repositories/usuarioRepository";
 import { LoginInput } from "../schemas/authSchema";
 
-const HASH_FICTICIO = bcrypt.hashSync("senha-ficticia", 10);
+const HASH_FICTICIO = bcrypt.hashSync("senha-fantasia", 10);
 
 export class AuthService {
   constructor(private readonly usuarioRepository: UsuarioRepository) {}
