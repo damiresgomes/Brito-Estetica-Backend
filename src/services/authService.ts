@@ -1,9 +1,11 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { randomUUID } from "node:crypto";
 import { env } from "../config/env";
 import { AppError } from "../errors/AppError";
 import { UsuarioRepository } from "../repositories/usuarioRepository";
 import { LoginInput } from "../schemas/authSchema";
+import { StatusAtivo } from "../types/usuario";
 
 const HASH_FICTICIO = bcrypt.hashSync("senha-fantasia", 10);
 
@@ -29,11 +31,31 @@ export class AuthService {
     }
 
     const token = jwt.sign(
-      { id: usuario.id, email: usuario.email },
+      { id: usuario.id, email: usuario.email, jti: randomUUID() },
       env.JWT_SECRET,
       { expiresIn: "1h", algorithm: "HS256" }
     );
 
     return { token };
+  }
+
+  async buscarPerfil(id: number): Promise<{
+    id: number;
+    nome: string;
+    email: string;
+    ativo: StatusAtivo;
+  }> {
+    const usuario = await this.usuarioRepository.buscarPorId(id);
+
+    if (!usuario) {
+      throw new AppError(404, "Usuário não encontrado");
+    }
+
+    return {
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email,
+      ativo: usuario.ativo,
+    };
   }
 }

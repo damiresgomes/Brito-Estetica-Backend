@@ -33,8 +33,21 @@ Cada camada tem **uma responsabilidade**:
 | `schemas/` | Schemas de validação do Zod |
 | `middlewares/` | Autenticação (JWT) e tratamento de erros |
 | `errors/` | Erros de domínio |
-| `validators/` | Funções auxiliares (ex.: cálculo de CPF) |
-| `types/` | Tipos e interfaces do domínio |
+| `validators/` | Funções auxiliares (ex.: cálculo de CPF, validação de data) |
+| `types/` | Tipos e interfaces do **contrato com o banco** (o que entra e o que sai) |
+| `entities/` | **Modelo de domínio**: as classes `Pessoa` e `Usuario` |
+
+**Regra das pastas `types/` e `entities/` (sem sobreposição):**
+
+| Pasta | O que guarda | Quem usa |
+|---|---|---|
+| `types/` | Contratos com o MySQL (`Usuario`, `NovoUsuario`, `Servico`, `NovoServico`, `StatusAtivo`) | `repositories/` e `schemas/` |
+| `entities/` | Modelo de domínio (`Pessoa`, `Usuario`) | `services/` |
+
+As duas pastas **não** definem o mesmo modelo duas vezes: o que é interface fica
+só em `types/`, o que é classe fica só em `entities/`. As regras de validação
+(formatos, tamanhos, datas) vivem **só nos schemas do Zod** — as entities são
+estrutura de dados, sem setters que validam.
 
 **`app.ts` x `server.ts`:** `app.ts` monta o servidor (plugins + rotas) e exporta
 a função `buildApp`; `server.ts` apenas liga na porta. Assim dá para testar a API
@@ -116,27 +129,40 @@ Brito-Estetica-Backend/
 │   │   └── env.ts
 │   ├── controllers/
 │   │   ├── authController.ts
+│   │   ├── servicoController.ts
 │   │   └── usuarioController.ts
+│   ├── entities/
+│   │   ├── pessoa.ts
+│   │   └── usuario.ts
 │   ├── errors/
 │   │   └── AppError.ts
 │   ├── middlewares/
 │   │   ├── authMiddleware.ts
-│   │   └── errorHandler.ts
+│   │   ├── errorHandler.ts
+│   │   └── limiteLoginMiddleware.ts
 │   ├── repositories/
+│   │   ├── servicoRepository.ts
 │   │   └── usuarioRepository.ts
 │   ├── routes/
 │   │   ├── authRoutes.ts
+│   │   ├── healthRoutes.ts
+│   │   ├── servicoRoutes.ts
 │   │   └── usuarioRoutes.ts
 │   ├── schemas/
 │   │   ├── authSchema.ts
+│   │   ├── servicoSchema.ts
 │   │   └── usuarioSchema.ts
 │   ├── services/
 │   │   ├── authService.ts
+│   │   ├── revogacaoService.ts
+│   │   ├── servicoService.ts
 │   │   └── usuarioService.ts
 │   ├── types/
+│   │   ├── servico.ts
 │   │   └── usuario.ts
 │   ├── validators/
-│   │   └── cpf.ts
+│   │   ├── cpf.ts
+│   │   └── data.ts
 │   ├── app.ts
 │   └── server.ts
 ├── docker/
@@ -194,7 +220,14 @@ DB_PASS=<senha>
 DB_NAME=<banco>
 DB_ROOT_PASSWORD=<senha_do_root>
 JWT_SECRET=<texto_longo_e_aleatorio>
+CORS_ORIGINS=http://localhost:5173
+TRUST_PROXY=0
 ```
+
+| Variável | Para que serve |
+|---|---|
+| `CORS_ORIGINS` | Lista de origens liberadas no CORS, separadas por vírgula. Padrão: `http://localhost:5173` |
+| `TRUST_PROXY` | Quantos proxies estão na frente da API (`0` = nenhum). Só aumente se a API roda atrás de Nginx/Cloudflare, senão o limite de login passa a contar todo mundo como o mesmo IP |
 
 Regras:
 - Sem espaço depois do `=`.
@@ -221,11 +254,43 @@ Requisição:
 | `400` | campo faltando ou e-mail inválido | `{ "message": "Erro de validação", "erros": [ ... ] }` |
 | `401` | usuário não existe ou senha errada | `{ "message": "Dados inválidos!" }` |
 | `403` | usuário inativo | `{ "message": "Usuário inativo" }` |
+| `429` | mais de 10 tentativas erradas em 15 min | `{ "message": "Muitas tentativas de login. Aguarde 15 minutos e tente novamente." }` |
 | `500` | erro inesperado | `{ "message": "Erro interno do servidor" }` |
 
-O token JWT expira em 1h e usa o algoritmo `HS256`.
+O token JWT expira em 1h e usa o algoritmo `HS256`. Cada token recebe um `jti`
+(identificador único), que permite revogar a sessão no logout.
 
-### `POST /api/usuarios` (pública)
+### `POST /api/auth/logout` (protegida)
+
+Invalida o token usado na requisição (revogação por `jti`).
+
+| Status | Quando | Corpo |
+|---|---|---|
+| `200` | sessão encerrada | `{ "message": "Sessão encerrada com sucesso" }` |
+| `401` | token ausente, inválido, expirado ou já revogado | `{ "message": "..." }` |
+
+Depois do logout, o mesmo token retorna `401` ("Sessão encerrada. Faça login novamente.").
+
+### `GET /api/auth/me` (protegida)
+
+Dados do usuário logado (sem a senha).
+
+| Status | Quando | Corpo |
+|---|---|---|
+| `200` | token válido | `{ "id": 1, "nome": "...", "email": "...", "ativo": "Sim" }` |
+| `401` | token ausente/inválido/revogado | `{ "message": "..." }` |
+| `403` | usuário desativado depois do login | `{ "message": "Usuário inativo" }` |
+
+### `GET /health` (pública)
+
+Verifica se a API está viva **e** se o banco responde.
+
+| Status | Quando | Corpo |
+|---|---|---|
+| `200` | API e banco OK | `{ "status": "ok" }` |
+| `503` | banco fora do ar | `{ "status": "indisponivel" }` |
+
+### `POST /api/usuarios/cadastro` (pública)
 
 Requisição:
 ```json
@@ -244,14 +309,29 @@ Requisição:
 | `201` | cadastrado | `{ "message": "Usuário cadastrado com sucesso", "id": 10 }` |
 | `400` | dados inválidos | `{ "message": "Erro de validação", "erros": [ ... ] }` |
 | `409` | e-mail ou CPF já cadastrado | `{ "message": "E-mail já cadastrado" }` |
+| `503` | banco fora do ar | `{ "message": "Banco de dados indisponível" }` |
 | `500` | erro inesperado | `{ "message": "Erro interno do servidor" }` |
 
 Regras de validação:
-- `email`: formato `algo@algo.algo`; é convertido para minúsculas.
+- `nome`: obrigatório, até 100 caracteres (o mesmo limite da coluna no banco).
+- `email`: formato `algo@algo.algo`, até 100 caracteres; é convertido para minúsculas.
 - `senha`: mínimo 8 e máximo 72 caracteres, com maiúscula, minúscula, número e símbolo.
-- `cpf`: dígitos verificadores validados; gravado apenas com números.
+- `cpf`: dígitos verificadores validados; gravado apenas com números (11 dígitos).
 - `salario`: número `>= 0` (no JSON, ex.: `3500`, não `"3500"`).
-- `datanascimento`: formato `AAAA-MM-DD`.
+- `datanascimento`: formato `AAAA-MM-DD`, data que **existe no calendário** (31/02 é
+  recusado), não pode estar no futuro e o colaborador precisa ter no mínimo 18 anos.
+
+### `GET /api/usuarios/listar` (protegida)
+
+Lista os colaboradores ativos. Exige `Authorization: Bearer <token>`.
+
+| Status | Quando | Corpo |
+|---|---|---|
+| `200` | token válido | `[ { "id": 1, "nome": "...", "email": "..." } ]` |
+| `401` | token ausente/inválido/revogado | `{ "message": "..." }` |
+| `403` | usuário desativado | `{ "message": "Usuário inativo" }` |
+
+Qualquer rota inexistente responde `404` em JSON: `{ "message": "Rota não encontrada" }`.
 
 ---
 
@@ -261,12 +341,14 @@ Regras de validação:
 |---|---|
 | Senha | Nunca em texto puro: `bcrypt.hash(senha, 10)` |
 | Login | Mensagem genérica ("Dados inválidos!") e comparação com hash fictício quando o usuário não existe (mitiga *timing attack*) |
-| Usuário inativo | Bloqueado (`403`) mesmo com senha correta |
-| JWT | `HS256` explícito, `expiresIn: "1h"`, segredo em `JWT_SECRET` |
+| Usuário inativo | Bloqueado (`403`) mesmo com senha correta, **e** revalidado no banco a cada requisição com token |
+| JWT | `HS256` explícito, `expiresIn: "1h"`, `jti` por token, segredo em `JWT_SECRET` |
+| Revogação | `POST /api/auth/logout` invalida o token (lista de `jti` em memória) |
+| Limite de login | 10 **tentativas erradas** em 15 min (`skipSuccessfulRequests`), resposta em JSON |
+| CORS | Lista explícita de origens em `CORS_ORIGINS` (nada de `origin: true`) |
 | Cabeçalhos | `@fastify/helmet` |
-| CORS | `@fastify/cors` |
 | SQL | Sempre prepared statements (`pool.execute` com `?`) |
-| Erros | Detalhes inesperados não vão para o cliente (só para o log) |
+| Erros | JSON inválido -> `400`, duplicidade -> `409`, FK inválida -> `400`, banco fora -> `503`, resto -> `500` |
 
 ---
 
@@ -276,6 +358,15 @@ Regras de validação:
 - `docker/init/*.sql` roda **uma vez**, na primeira criação do volume.
 - A tabela `usuario` agora tem `UNIQUE` em `email` e `cpf`, garantindo
   integridade no banco além da checagem feita no service.
+- **CPF sempre gravado com 11 dígitos** (sem pontos/traço). É isso que faz o
+  índice `uq_usuario_cpf` valer: gravado com máscara, o mesmo CPF passaria
+  duas vezes sem o banco reclamar. O dump já normaliza os CPFs plantados.
+- `CHECK (cpf REGEXP '^[0-9]{11}$')` na tabela `usuario` garante o formato.
+
+> Banco já criado em volume antigo? Normalize os CPFs uma vez:
+> ```sql
+> UPDATE usuario SET cpf = REPLACE(REPLACE(REPLACE(cpf, '.', ''), '-', ''), ' ', '');
+> ```
 
 | Ação | Comando |
 |---|---|
@@ -300,12 +391,21 @@ Regras de validação:
 | `AppError` | Separar erro esperado (401/403/409) de erro inesperado (500) |
 | `@fastify/helmet` + `@fastify/cors` | Cabeçalhos de segurança e CORS |
 | JWT `HS256` explícito | Evita *algorithm confusion* |
+| `jti` no token | Permite revogar a sessão no logout |
+| Revalidar o usuário no banco | Usuário desativado perde o acesso na hora, sem esperar o token expirar |
+| Limite de login contando só falhas | Login correto não gasta tentativa (com `skipSuccessfulRequests`) |
+| CORS por lista (`CORS_ORIGINS`) | `origin: true` deixava qualquer site chamar a API |
+| `dateStrings` + `timezone: "Z"` no pool | A data de nascimento vai e volta como `AAAA-MM-DD`, sem tropeço de fuso |
+| `decimalNumbers: true` no pool | `preco` e `duracao_horas` voltam como número, como o TypeScript promete |
 | Hash fictício no login | Tempo de resposta parecido exista ou não o e-mail |
 | Checar `ativo` | Impede login de usuário desativado |
 | `UNIQUE` em email/cpf | Integridade garantida pelo banco |
 | `pool.execute` | Prepared statements (mais seguro) |
 | `REPLACE` no `buscarPorCpf` | Casa CPFs antigos gravados com pontos/traço |
 | `validators/cpf.ts` mantido | É cálculo, não formato; usado dentro de um `.refine` do Zod |
+| `validators/data.ts` | Data de calendário real (bissexto, futuro, idade mínima) |
+| Regras só no Zod | Entities são estrutura de dados: não existem duas fontes de verdade |
+| `types/` x `entities/` | Contrato com o banco x modelo de domínio, sem duplicar o mesmo modelo |
 
 ---
 

@@ -3,7 +3,18 @@ import { AppError } from "../errors/AppError";
 import { UsuarioRepository } from "../repositories/usuarioRepository";
 import { CadastroUsuarioInput } from "../schemas/usuarioSchema";
 import { normalizarCpf } from "../validators/cpf";
+import { Usuario } from "../entities/usuario";
 
+interface ErroDeBanco {
+  code?: string;
+  errno?: number;
+}
+
+function ehDuplicidade(erro: unknown): boolean {
+  const erroBanco = erro as ErroDeBanco | null;
+
+  return erroBanco?.code === "ER_DUP_ENTRY" || erroBanco?.errno === 1062;
+}
 
 export class UsuarioService {
   constructor(private readonly usuarioRepository: UsuarioRepository) {}
@@ -24,15 +35,29 @@ export class UsuarioService {
 
     const senhaHash = await bcrypt.hash(dados.senha, 10);
 
-    const id = await this.usuarioRepository.criarUsuario({
-      nome: dados.nome,
-      email: dados.email,
-      senhaHash,
-      cpf,
-      salario: dados.salario,
-      datanascimento: dados.datanascimento,
-    });
+    const novoUsuario = new Usuario(0, dados.nome, dados.email, cpf, dados.datanascimento, "", senhaHash, dados.salario, "Sim");
 
-    return { id };
+    try {
+      const id = await this.usuarioRepository.criarUsuario({
+        nome: novoUsuario.nome, 
+        email: novoUsuario.email,
+        senhaHash: novoUsuario.senhaHash,
+        cpf: novoUsuario.cpf,
+        salario: novoUsuario.salario,
+        datanascimento: novoUsuario.dataDeNascimento,
+      });
+
+      return { id };
+    } catch (erro) {
+      if (ehDuplicidade(erro)) {
+        throw new AppError(409, "E-mail ou CPF já cadastrado");
+      }
+
+      throw erro;
+    }
+  }
+
+  async listar(): Promise<{ id: number; nome: string; email: string }[]> {
+    return this.usuarioRepository.buscarTodos();
   }
 }

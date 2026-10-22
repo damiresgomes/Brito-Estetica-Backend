@@ -9,6 +9,12 @@ const envSchema = z.object({
   DB_PASS: z.string().min(1, "DB_PASS é obrigatório"),
   DB_NAME: z.string().min(1, "DB_NAME é obrigatório"),
   JWT_SECRET: z.string().min(1, "JWT_SECRET é obrigatório"),
+  CORS_ORIGINS: z
+    .string()
+    .trim()
+    .min(1, "CORS_ORIGINS é obrigatório")
+    .default("http://localhost:5173"),
+  TRUST_PROXY: z.coerce.number().int().min(0).default(0),
 });
 
 const resultado = envSchema.safeParse(process.env);

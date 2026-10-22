@@ -2,10 +2,15 @@ import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 import { AppError } from "../errors/AppError";
+import { UsuarioRepository } from "../repositories/usuarioRepository";
+import { tokenRevogado } from "../services/revogacaoService";
 
 export interface TokenPayload {
   id: number;
   email: string;
+  jti: string;
+  exp?: number;
+  iat?: number;
 }
 
 declare module "express-serve-static-core" {
@@ -13,6 +18,8 @@ declare module "express-serve-static-core" {
     usuario?: TokenPayload;
   }
 }
+
+const usuarioRepository = new UsuarioRepository();
 
 export async function authMiddleware(
   request: Request,
@@ -27,13 +34,34 @@ export async function authMiddleware(
 
   const token = cabecalho.slice("Bearer ".length);
 
+  let payload: TokenPayload;
+
   try {
-    const payload = jwt.verify(token, env.JWT_SECRET, {
+    payload = jwt.verify(token, env.JWT_SECRET, {
       algorithms: ["HS256"],
-    });
-    request.usuario = payload as TokenPayload;
-    next();
+    }) as TokenPayload;
   } catch {
     throw new AppError(401, "Token inválido ou expirado");
   }
+
+  if (!payload.jti) {
+    throw new AppError(401, "Token inválido ou expirado");
+  }
+
+  if (tokenRevogado(payload.jti)) {
+    throw new AppError(401, "Sessão encerrada. Faça login novamente.");
+  }
+
+  const usuario = await usuarioRepository.buscarPorId(payload.id);
+
+  if (!usuario) {
+    throw new AppError(401, "Usuário não encontrado");
+  }
+
+  if (usuario.ativo !== "Sim") {
+    throw new AppError(403, "Usuário inativo");
+  }
+
+  request.usuario = payload;
+  next();
 }

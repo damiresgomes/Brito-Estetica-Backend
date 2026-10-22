@@ -1,5 +1,5 @@
 import { pool } from "../config/database";
-import { NovoServico, Servico } from "../entities/servico";
+import { NovoServico, Servico } from "../types/servico";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 
 interface ServicoRow extends RowDataPacket, Servico { }
@@ -38,6 +38,14 @@ export class ServicoRepository {
         );
 
         return resultado.insertId;
+    }
+
+    async listarServicos(): Promise<Servico[]> {
+        const [servicos] = await pool.execute<ServicoRow[]>(
+            `SELECT ${COLUNAS} FROM servicos`
+        );
+
+        return servicos;
     }
 
     async atualizarServico(servico: Servico): Promise<number> {

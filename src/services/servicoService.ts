@@ -1,6 +1,7 @@
 import { ServicoRepository } from "../repositories/servicoRepository";
 import { AppError } from "../errors/AppError";
 import { CadastroServicoInput } from "../schemas/servicoSchema";
+import { Servico } from "../types/servico";
 
 export class ServicoService {
     constructor(private readonly servicoRepository: ServicoRepository) { }
@@ -22,5 +23,9 @@ export class ServicoService {
             });
 
         return { id };
+    }
+
+    async listarServicos(): Promise<Servico[]> {
+        return this.servicoRepository.listarServicos();
     }
 }

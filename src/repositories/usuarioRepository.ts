@@ -1,6 +1,6 @@
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { pool } from "../config/database";
-import { NovoUsuario, Usuario } from "../entities/usuario";
+import { NovoUsuario, Usuario } from "../types/usuario";
 
 interface UsuarioRow extends RowDataPacket, Usuario {}
 
@@ -26,6 +26,15 @@ export class UsuarioRepository {
     return usuarios[0] ?? null;
   }
 
+  async buscarPorId(id: number): Promise<Usuario | null> {
+    const [usuarios] = await pool.execute<UsuarioRow[]>(
+      `SELECT ${COLUNAS} FROM usuario WHERE id = ?`,
+      [id]
+    );
+
+    return usuarios[0] ?? null;
+  }
+
   async criarUsuario(usuario: NovoUsuario): Promise<number> {
     const [resultado] = await pool.execute<ResultSetHeader>(
       `INSERT INTO usuario
@@ -42,5 +51,12 @@ export class UsuarioRepository {
     );
 
     return resultado.insertId;
+  }
+
+  async buscarTodos(): Promise<{ id: number; nome: string; email: string }[]> {
+    const [usuarios] = await pool.execute<UsuarioRow[]>(
+      `SELECT id, nome, email FROM usuario WHERE ativo = 'Sim'`
+    );
+    return usuarios;
   }
 }

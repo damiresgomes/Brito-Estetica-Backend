@@ -25,7 +25,11 @@ DELIMITER $$
 --
 -- Procedimentos
 --
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_buscar_agendamentos` (IN `p_termo` VARCHAR(100))   BEGIN
+-- Sem `DEFINER` explícito: o definidor passa a ser quem executa o script,
+-- assim o dump funciona em qualquer servidor (o `root@localhost` não existe
+-- em todo MySQL 8, e um definidor inexistente impede a criação do objeto).
+-- `READS SQL DATA` é a característica correta: a procedure só consulta a view.
+CREATE PROCEDURE `sp_buscar_agendamentos` (IN `p_termo` VARCHAR(100)) READS SQL DATA BEGIN
     SELECT 
         id_agendamento,
         data_hora,
@@ -48,7 +52,7 @@ END$$
 --
 -- Funções
 --
-CREATE DEFINER=`root`@`localhost` FUNCTION `fn_obter_nome_categoria` (`p_id_categoria` INT) RETURNS VARCHAR(100) CHARSET utf8mb4 COLLATE utf8mb4_general_ci DETERMINISTIC BEGIN
+CREATE FUNCTION `fn_obter_nome_categoria` (`p_id_categoria` INT) RETURNS VARCHAR(100) CHARSET utf8mb4 COLLATE utf8mb4_general_ci DETERMINISTIC BEGIN
 	DECLARE v_nome varchar(100);
 
 	SELECT nome_categoria INTO v_nome
@@ -240,6 +244,12 @@ INSERT INTO `servicos` (`id_servico`, `nome_servico`, `descricao`, `preco`, `dur
 --
 -- Acionadores `servicos`
 --
+-- Observação (MySQL 8): o trigger não recebe `NO SQL`/`DETERMINISTIC` — a
+-- sintaxe de `CREATE TRIGGER` não aceita essas características. O MySQL 8
+-- considera trigger sempre determinístico por definição. O que o MySQL 8
+-- exige é que a *function* declare `DETERMINISTIC`/`NO SQL`/`READS SQL DATA`
+-- (a de cima já declara `DETERMINISTIC`).
+--
 DELIMITER $$
 CREATE TRIGGER `trg_servicos_before_update` BEFORE UPDATE ON `servicos` FOR EACH ROW BEGIN
 	IF NEW.preco <= 0 THEN
@@ -275,6 +285,16 @@ INSERT INTO `usuario` (`id`, `nome`, `email`, `senha`, `cpf`, `salario`, `datana
 (1, 'Administrador', 'admin@gmail.com', '$2y$10$UlRENRQON2SjaSYAxmYs4OydOa5NkiJTqdZMbKiJbH75yZ5Xfebom', '094.650.100-90', 3500, '1980-07-22', 'Sim'),
 (2, 'Bill Gates', 'teste@teste.com', '$2y$10$ineMFivFCCHdP3gGGWfoR.RRqt.3jYDbIi.mXDPLjIM0vvYps9j7G', '424.454.180-20', 3500, '2000-10-20', 'Sim'),
 (9, 'teste', 'teste2@teste.com', '$2y$10$wl.IteWzPTk3Sc/5SL2cCuL3mrh8yqwHHLCGF4/e3oUJD6lcZZyUW', '540.998.448-03', 5240, '2007-11-12', 'Sim');
+
+--
+-- Normaliza os CPFs plantados para apenas dígitos.
+--
+-- Sem isso o índice `uq_usuario_cpf` não protege: gravado com máscara
+-- ('094.650.100-90') e gravado sem máscara ('09465010090') são textos
+-- diferentes para o MySQL, e o mesmo CPF passaria duas vezes.
+--
+UPDATE `usuario`
+SET `cpf` = REPLACE(REPLACE(REPLACE(`cpf`, '.', ''), '-', ''), ' ', '');
 
 -- --------------------------------------------------------
 
@@ -313,7 +333,7 @@ CREATE TABLE `vw_servico_mais_vendido` (
 --
 DROP TABLE IF EXISTS `vw_agendamentos_centralizados`;
 
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `vw_agendamentos_centralizados`  AS SELECT `a`.`id_agendamento` AS `id_agendamento`, `a`.`data_hora` AS `data_hora`, `a`.`placa_veiculo` AS `placa_veiculo`, `a`.`modelo_veiculo` AS `modelo_veiculo`, `a`.`status` AS `status`, `c`.`id_cliente` AS `id_cliente`, `c`.`nome` AS `cliente`, `s`.`id_servico` AS `id_servico`, `s`.`nome_servico` AS `nome_servico`, coalesce(`s`.`preco`,0.00) AS `valor` FROM (((`agendamentos` `a` join `clientes` `c` on(`c`.`id_cliente` = `a`.`id_cliente`)) left join `agendamento_servico` `ags` on(`ags`.`id_agendamento` = `a`.`id_agendamento`)) left join `servicos` `s` on(`s`.`id_servico` = `ags`.`id_servico`)) ORDER BY `a`.`data_hora` DESC ;
+CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vw_agendamentos_centralizados`  AS SELECT `a`.`id_agendamento` AS `id_agendamento`, `a`.`data_hora` AS `data_hora`, `a`.`placa_veiculo` AS `placa_veiculo`, `a`.`modelo_veiculo` AS `modelo_veiculo`, `a`.`status` AS `status`, `c`.`id_cliente` AS `id_cliente`, `c`.`nome` AS `cliente`, `s`.`id_servico` AS `id_servico`, `s`.`nome_servico` AS `nome_servico`, coalesce(`s`.`preco`,0.00) AS `valor` FROM (((`agendamentos` `a` join `clientes` `c` on(`c`.`id_cliente` = `a`.`id_cliente`)) left join `agendamento_servico` `ags` on(`ags`.`id_agendamento` = `a`.`id_agendamento`)) left join `servicos` `s` on(`s`.`id_servico` = `ags`.`id_servico`)) ORDER BY `a`.`data_hora` DESC ;
 
 -- --------------------------------------------------------
 
@@ -322,7 +342,7 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 --
 DROP TABLE IF EXISTS `vw_servico_mais_vendido`;
 
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `vw_servico_mais_vendido`  AS WITH ContagemServicos AS (SELECT `s`.`nome_servico` AS `nome_servico`, count(`ags`.`id_agendamento`) AS `total_vendas` FROM (`servicos` `s` left join `agendamento_servico` `ags` on(`s`.`id_servico` = `ags`.`id_servico`)) GROUP BY `s`.`id_servico`, `s`.`nome_servico`) SELECT `contagemservicos`.`nome_servico` AS `nome_servico`, `contagemservicos`.`total_vendas` AS `total_vendas` FROM `contagemservicos` ORDER BY `contagemservicos`.`total_vendas` DESC LIMIT 0, 11  ;
+CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vw_servico_mais_vendido`  AS WITH ContagemServicos AS (SELECT `s`.`nome_servico` AS `nome_servico`, count(`ags`.`id_agendamento`) AS `total_vendas` FROM (`servicos` `s` left join `agendamento_servico` `ags` on(`s`.`id_servico` = `ags`.`id_servico`)) GROUP BY `s`.`id_servico`, `s`.`nome_servico`) SELECT `contagemservicos`.`nome_servico` AS `nome_servico`, `contagemservicos`.`total_vendas` AS `total_vendas` FROM `contagemservicos` ORDER BY `contagemservicos`.`total_vendas` DESC LIMIT 0, 11  ;
 
 --
 -- Índices para tabelas despejadas
@@ -425,6 +445,15 @@ ALTER TABLE `agendamento_servico`
 --
 ALTER TABLE `servicos`
   ADD CONSTRAINT `fk_servicos_categoria` FOREIGN KEY (`id_categoria`) REFERENCES `categoria` (`id_categoria`);
+
+--
+-- Restrições de tabela `usuario`
+--
+-- O CPF é sempre gravado com 11 dígitos: é o que faz o índice único
+-- `uq_usuario_cpf` valer de verdade.
+--
+ALTER TABLE `usuario`
+  ADD CONSTRAINT `chk_usuario_cpf` CHECK (`cpf` REGEXP '^[0-9]{11}$');
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
