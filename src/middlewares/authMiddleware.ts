@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 import { AppError } from "../errors/AppError";
 import { UsuarioRepository } from "../repositories/usuarioRepository";
-import { tokenRevogado } from "../services/revogacaoService";
+import { tokenExpirado } from "../services/revogacaoService";
 
 export interface TokenPayload {
   id: number;
@@ -48,7 +48,7 @@ export async function authMiddleware(
     throw new AppError(401, "Token inválido ou expirado");
   }
 
-  if (tokenRevogado(payload.jti)) {
+  if (tokenExpirado(payload.jti)) {
     throw new AppError(401, "Sessão encerrada. Faça login novamente.");
   }
 

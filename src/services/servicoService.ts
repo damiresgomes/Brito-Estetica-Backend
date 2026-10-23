@@ -28,4 +28,29 @@ export class ServicoService {
     async listarServicos(): Promise<Servico[]> {
         return this.servicoRepository.listarServicos();
     }
+
+    async atualizarServico(id_servico: number, servico: CadastroServicoInput): Promise<number> {
+        const servicoAtualizado = await this.servicoRepository.atualizarServico(id_servico, { ...servico, id_servico })
+
+        if (servicoAtualizado === 0) {
+            throw new AppError(404, "Serviço não encontrado.")
+        }
+
+        return servicoAtualizado;
+    }
+
+    async excluirServico(id_servico: number): Promise<number> {
+
+        const servicoExcluido = await this.servicoRepository.excluirServico(id_servico)
+
+        if (servicoExcluido === 0) {
+            throw new AppError(404, "Serviço não encontrado.")
+        }
+
+        if (servicoExcluido >= 1) {
+            throw new AppError(409, "Não foi possível excluir o serviço pois ele possui dependências.")
+        }
+
+        return servicoExcluido;
+    }
 }

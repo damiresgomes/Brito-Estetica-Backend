@@ -20,4 +20,23 @@ export class ServicoController {
 
         return response.status(200).json(servicos);
     }
+
+    async excluirServico(request: Request, response: Response): Promise<Response> {
+        const { id } = request.params;
+        await this.servicoService.excluirServico(Number(id));
+
+        return response.status(200).json({
+            message: "Serviço excluído com sucesso",
+        });
+    }
+
+    async atualizarServico(request: Request, response: Response): Promise<Response> {
+        const { id } = request.params;
+        const dados = cadastroServicoSchema.parse(request.body);
+        await this.servicoService.atualizarServico(Number(id), dados);
+
+        return response.status(200).json({
+            message: "Serviço atualizado com sucesso",
+        });
+    }
 }

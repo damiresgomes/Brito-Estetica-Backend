@@ -19,6 +19,7 @@ const CODIGOS_DE_CONEXAO = [
   "ETIMEDOUT",
   "ENOTFOUND",
   "ER_CON_COUNT_ERROR",
+  "ER_ROW_IS_REFERENCED_2"
 ];
 
 export function errorHandler(
@@ -71,6 +72,12 @@ export function errorHandler(
   if (erroDeBanco?.code && CODIGOS_DE_CONEXAO.includes(erroDeBanco.code)) {
     console.error("Erro de conexão com o banco:", error);
     return response.status(503).json({ message: "Banco de dados indisponível" });
+  }
+
+  if (erroDeBanco?.code === "ER_ROW_IS_REFERENCED_2" || erroDeBanco?.errno === 1451) {
+    return response.status(409).json({
+      message: "Não foi possível excluir o registro pois ele possui dependências."
+    });
   }
 
   console.error(error);

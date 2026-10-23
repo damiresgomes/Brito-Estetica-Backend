@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { loginSchema } from "../schemas/authSchema";
 import { AuthService } from "../services/authService";
-import { revogarToken } from "../services/revogacaoService";
+import { expirarToken } from "../services/revogacaoService";
 import { AppError } from "../errors/AppError";
 
 export class AuthController {
@@ -21,7 +21,7 @@ export class AuthController {
       throw new AppError(401, "Token não informado");
     }
 
-    revogarToken(sessao.jti, sessao.exp ?? 3600);
+    expirarToken(sessao.jti, sessao.exp ?? 3600);
 
     return response.status(200).json({ message: "Sessão encerrada com sucesso" });
   }
@@ -33,7 +33,7 @@ export class AuthController {
       throw new AppError(401, "Token não informado");
     }
 
-    const usuario = await this.authService.buscarPerfil(sessao.id);
+    const usuario = await this.authService.buscarUsuarioPorId(sessao.id);
 
     return response.status(200).json(usuario);
   }

@@ -48,9 +48,9 @@ export class ServicoRepository {
         return servicos;
     }
 
-    async atualizarServico(servico: Servico): Promise<number> {
+    async atualizarServico(id_servico: number, servico: Servico): Promise<number> {
         const [resultado] = await pool.execute<ResultSetHeader>(
-            `UPDATE servicos SET nome_servico = ?, descricao = ?, preco = ?, duracao_horas = ? WHERE id_servico = ?`,
+            `UPDATE servicos SET nome_servico = ?, descricao = ?, preco = ?, duracao_horas = ?, id_categoria = ? WHERE id_servico = ?`,
             [
                 servico.nome_servico,
                 servico.descricao,

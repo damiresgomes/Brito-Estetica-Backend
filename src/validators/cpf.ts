@@ -1,10 +1,10 @@
 function calculoDeCpfValido(digito: string): number {
   let soma = 0;
-  let peso = digito.length + 1;
+  let tamanho = digito.length + 1;
 
   for (const caractere of digito) {
-    soma += Number(caractere) * peso;
-    peso--;
+    soma += Number(caractere) * tamanho;
+    tamanho--;
   }
 
   const sobra = (soma * 10) % 11;

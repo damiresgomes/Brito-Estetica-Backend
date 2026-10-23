@@ -39,7 +39,7 @@ export class AuthService {
     return { token };
   }
 
-  async buscarPerfil(id: number): Promise<{
+  async buscarUsuarioPorId(id: number): Promise<{
     id: number;
     nome: string;
     email: string;

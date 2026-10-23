@@ -15,5 +15,9 @@ export function servicoRoutes(): Router {
 
   router.get("/listar", (request, response) => servicoController.listarServicos(request, response));
 
+  router.put("/atualizar/:id", (request, response) => servicoController.atualizarServico(request, response));
+
+  router.delete("/deletar/:id", (request, response) => servicoController.excluirServico(request, response));
+
   return router;
 }
