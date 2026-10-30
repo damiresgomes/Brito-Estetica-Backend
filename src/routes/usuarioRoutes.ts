@@ -1,23 +1,14 @@
 import { Router } from "express";
-import { UsuarioController } from "../controllers/usuarioController";
-import { UsuarioService } from "../services/usuarioService";
-import { UsuarioRepository } from "../repositories/usuarioRepository";
+import { cadastrarUsuarioController, listarUsuariosController, atualizarUsuarioController, buscarUsuarioPorIdController } from "../controllers/usuarioController";
 import { authMiddleware } from "../middlewares/authMiddleware";
 
 export function usuarioRoutes(): Router {
   const router = Router();
 
-  const usuarioRepository = new UsuarioRepository();
-  const usuarioService = new UsuarioService(usuarioRepository);
-  const usuarioController = new UsuarioController(usuarioService);
-
-  router.post("/cadastro", authMiddleware, (request, response) =>
-    usuarioController.cadastrarUsuario(request, response)
-  );
-
-  router.get("/listar", authMiddleware, (request, response) =>
-    usuarioController.listarUsuarios(request, response)
-  );
+  router.post("/cadastro", cadastrarUsuarioController);
+  router.get("/listar", authMiddleware, listarUsuariosController);
+  router.get("/:id", authMiddleware, buscarUsuarioPorIdController);
+  router.get("/atualizar/:id", authMiddleware, atualizarUsuarioController)
 
   return router;
 }

@@ -43,4 +43,7 @@ export const cadastroUsuarioSchema = z.object({
   datanascimento: dataNascimentoSchema,
 });
 
+
 export type CadastroUsuarioInput = z.infer<typeof cadastroUsuarioSchema>;
+
+export type AtualizacaoUsuarioInput = z.infer<typeof cadastroUsuarioSchema>;

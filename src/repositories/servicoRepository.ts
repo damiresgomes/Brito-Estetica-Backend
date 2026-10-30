@@ -1,82 +1,91 @@
 import { pool } from "../config/database";
-import { NovoServico, Servico } from "../types/servico";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
+
+export interface NovoServico {
+  nome_servico: string;
+  descricao: string;
+  preco: number;
+  duracao_horas: number;
+  id_categoria: number;
+}
+
+export interface Servico extends NovoServico {
+    id_servico: number;
+}
 
 interface ServicoRow extends RowDataPacket, Servico { }
 
 const COLUNAS = "id_servico, nome_servico, descricao, preco, duracao_horas, id_categoria";
 
-export class ServicoRepository {
-    async buscarServico(nome: string): Promise<Servico | null> {
-        const [servicos] = await pool.execute<ServicoRow[]>(
-            `SELECT ${COLUNAS} FROM servicos WHERE nome_servico = ?`,
-            [nome]
-        );
+export async function buscarServico(nome: string): Promise<Servico | null> {
+    const [servicos] = await pool.execute<ServicoRow[]>(
+        `SELECT ${COLUNAS} FROM servicos WHERE nome_servico = ?`,
+        [nome]
+    );
 
-        return servicos[0] ?? null;
-    }
+    return servicos[0] ?? null;
+}
 
-    async buscarServicoPorNome(nome: string): Promise<Servico[] | null> {
-        const [servicos] = await pool.execute<ServicoRow[]>(
-            `SELECT ${COLUNAS} FROM servicos WHERE nome_servico LIKE CONCAT('%', ? , '%')`,
-            [nome]
-        );
+export async function buscarServicoPorNome(nome: string): Promise<Servico[] | null> {
+    const [servicos] = await pool.execute<ServicoRow[]>(
+        `SELECT ${COLUNAS} FROM servicos WHERE nome_servico LIKE CONCAT('%', ? , '%')`,
+        [nome]
+    );
 
-        return servicos ?? null;
-    }
+    return servicos ?? null;
+}
 
-    async criarServico(servico: NovoServico): Promise<number> {
-        const [resultado] = await pool.execute<ResultSetHeader>(
-            `INSERT INTO servicos (nome_servico, descricao, preco, duracao_horas, id_categoria) VALUES (?, ?, ?, ?, ?)`,
-            [
-                servico.nome_servico,
-                servico.descricao,
-                servico.preco,
-                servico.duracao_horas,
-                servico.id_categoria
-            ]
-        );
+export async function criarServico(servico: NovoServico): Promise<number> {
+    const [resultado] = await pool.execute<ResultSetHeader>(
+        `INSERT INTO servicos (nome_servico, descricao, preco, duracao_horas, id_categoria) VALUES (?, ?, ?, ?, ?)`,
+        [
+            servico.nome_servico,
+            servico.descricao,
+            servico.preco,
+            servico.duracao_horas,
+            servico.id_categoria
+        ]
+    );
 
-        return resultado.insertId;
-    }
+    return resultado.insertId;
+}
 
-    async listarServicos(): Promise<Servico[]> {
-        const [servicos] = await pool.execute<ServicoRow[]>(
-            `SELECT ${COLUNAS} FROM servicos`
-        );
+export async function listarServicos(): Promise<Servico[]> {
+    const [servicos] = await pool.execute<ServicoRow[]>(
+        `SELECT ${COLUNAS} FROM servicos`
+    );
 
-        return servicos;
-    }
+    return servicos;
+}
 
-    async atualizarServico(id_servico: number, servico: Servico): Promise<number> {
-        const [resultado] = await pool.execute<ResultSetHeader>(
-            `UPDATE servicos SET nome_servico = ?, descricao = ?, preco = ?, duracao_horas = ?, id_categoria = ? WHERE id_servico = ?`,
-            [
-                servico.nome_servico,
-                servico.descricao,
-                servico.preco,
-                servico.duracao_horas,
-                servico.id_servico
-            ]
-        );
+export async function atualizarServico(id_servico: number, servico: Servico): Promise<number> {
+    const [resultado] = await pool.execute<ResultSetHeader>(
+        `UPDATE servicos SET nome_servico = ?, descricao = ?, preco = ?, duracao_horas = ?, id_categoria = ? WHERE id_servico = ?`,
+        [
+            servico.nome_servico,
+            servico.descricao,
+            servico.preco,
+            servico.duracao_horas,
+            servico.id_servico
+        ]
+    );
 
-        return resultado.affectedRows;
-    }
+    return resultado.affectedRows;
+}
 
-    async buscarTodosServicos(): Promise<Servico[]> {
-        const [servicos] = await pool.execute<ServicoRow[]>(
-            `SELECT ${COLUNAS} FROM servicos`
-        );
+export async function buscarTodosServicos(): Promise<Servico[]> {
+    const [servicos] = await pool.execute<ServicoRow[]>(
+        `SELECT ${COLUNAS} FROM servicos`
+    );
 
-        return servicos;
-    }
+    return servicos;
+}
 
-    async excluirServico(id_servico: number): Promise<number> {
-        const [resultado] = await pool.execute<ResultSetHeader>(
-            `DELETE FROM servicos WHERE id_servico = ?`,
-            [id_servico]
-        );
+export async function excluirServico(id_servico: number): Promise<number> {
+    const [resultado] = await pool.execute<ResultSetHeader>(
+        `DELETE FROM servicos WHERE id_servico = ?`,
+        [id_servico]
+    );
 
-        return resultado.affectedRows;
-    }
+    return resultado.affectedRows;
 }
