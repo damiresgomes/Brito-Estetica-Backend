@@ -2,12 +2,12 @@ import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 import { AppError } from "../errors/AppError";
-import { UsuarioRepository } from "../repositories/usuarioRepository";
-import { tokenRevogado } from "../services/revogacaoService";
+import { tokenExpirado } from "../services/revogacaoService";
+import { buscarPorId } from "../repositories/usuarioRepository";
 
-export interface TokenPayload {
+export interface Token {
   id: number;
-  email: string;
+  email: string
   jti: string;
   exp?: number;
   iat?: number;
@@ -15,44 +15,34 @@ export interface TokenPayload {
 
 declare module "express-serve-static-core" {
   interface Request {
-    usuario?: TokenPayload;
+    usuario?: Token;
   }
 }
-
-const usuarioRepository = new UsuarioRepository();
 
 export async function authMiddleware(
   request: Request,
   _response: Response,
   next: NextFunction
 ): Promise<void> {
-  const cabecalho = request.headers.authorization;
+  const [, token] = request.headers.authorization?.split(" ") ?? [];
 
-  if (!cabecalho?.startsWith("Bearer ")) {
+  if (!token) {
     throw new AppError(401, "Token não informado");
   }
 
-  const token = cabecalho.slice("Bearer ".length);
-
-  let payload: TokenPayload;
-
+  let payload: Token;
   try {
-    payload = jwt.verify(token, env.JWT_SECRET, {
-      algorithms: ["HS256"],
-    }) as TokenPayload;
+    payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] }) as Token;
+    if (!payload.jti) throw new Error();
   } catch {
     throw new AppError(401, "Token inválido ou expirado");
   }
 
-  if (!payload.jti) {
-    throw new AppError(401, "Token inválido ou expirado");
-  }
-
-  if (tokenRevogado(payload.jti)) {
+  if (tokenExpirado(payload.jti)) {
     throw new AppError(401, "Sessão encerrada. Faça login novamente.");
   }
 
-  const usuario = await usuarioRepository.buscarPorId(payload.id);
+  const usuario = await buscarPorId(payload.id);
 
   if (!usuario) {
     throw new AppError(401, "Usuário não encontrado");

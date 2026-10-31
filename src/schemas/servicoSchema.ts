@@ -23,4 +23,5 @@ export const cadastroServicoSchema = z.object({
   .positive("Categoria deve ser maior que zero"),
 });
 
+
 export type CadastroServicoInput = z.infer<typeof cadastroServicoSchema>;
