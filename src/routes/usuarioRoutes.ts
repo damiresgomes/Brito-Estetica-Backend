@@ -11,7 +11,7 @@ export function usuarioRoutes(): Router {
   const usuarioService = new UsuarioService(usuarioRepository);
   const usuarioController = new UsuarioController(usuarioService);
 
-  router.post("/cadastro", authMiddleware, (request, response) =>
+  router.post("/cadastro", (request, response) =>
     usuarioController.cadastrarUsuario(request, response)
   );
 
