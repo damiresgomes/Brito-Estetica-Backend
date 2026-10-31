@@ -1,10 +1,11 @@
 import { Request, Response } from "express";
 import { cadastroServicoSchema } from "../schemas/servicoSchema";
-import { criarServico, listarServicos, excluirServico, atualizarServico } from "../services/servicoService";
+import { cadastrarServico, excluirServico, atualizarServico, listarServicos } from "../services/servicoService";
+
 
 export async function cadastrarServicoController(request: Request, response: Response): Promise<Response> {
     const dados = cadastroServicoSchema.parse(request.body);
-    const { id } = await criarServico(dados);
+    const { id } = await cadastrarServico(dados);
 
     return response.status(201).json({
         message: "Serviço cadastrado com sucesso",

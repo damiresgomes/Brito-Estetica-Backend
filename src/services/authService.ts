@@ -5,6 +5,7 @@ import { env } from "../config/env";
 import { AppError } from "../errors/AppError";
 import { buscarPorEmail,buscarPorId } from "../repositories/usuarioRepository";
 import { LoginInput } from "../schemas/authSchema";
+import { StatusAtivo } from "../entities/usuario";
 
 const HASH_FICTICIO = bcrypt.hashSync("senha-fantasia", 10);
 
@@ -16,7 +17,7 @@ export async function loginAuthService({ email, senha }: LoginInput): Promise<{ 
       throw new AppError(401, "Dados inválidos!");
     }
 
-    const senhaOk = await bcrypt.compare(senha, usuario.senha);
+    const senhaOk = await bcrypt.compare(senha, usuario.senhaHash);
 
     if (!senhaOk) {
       throw new AppError(401, "Dados inválidos!");

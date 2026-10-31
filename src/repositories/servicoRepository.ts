@@ -17,7 +17,16 @@ interface ServicoRow extends RowDataPacket, Servico { }
 
 const COLUNAS = "id_servico, nome_servico, descricao, preco, duracao_horas, id_categoria";
 
-export async function buscarServico(nome: string): Promise<Servico | null> {
+export async function buscarServico(id: number): Promise<Servico | null> {
+    const [servicos] = await pool.execute<ServicoRow[]>(
+        `SELECT ${COLUNAS} FROM servicos WHERE id_servico = ?`,
+        [id]
+    );
+
+    return servicos[0] ?? null;
+}
+
+export async function buscarServicoPorNomeExato(nome: string): Promise<Servico | null> {
     const [servicos] = await pool.execute<ServicoRow[]>(
         `SELECT ${COLUNAS} FROM servicos WHERE nome_servico = ?`,
         [nome]
@@ -58,7 +67,7 @@ export async function listarServicos(): Promise<Servico[]> {
     return servicos;
 }
 
-export async function atualizarServico(id_servico: number, servico: Servico): Promise<number> {
+export async function _atualizarServico(id_servico: number, servico: Servico): Promise<number> {
     const [resultado] = await pool.execute<ResultSetHeader>(
         `UPDATE servicos SET nome_servico = ?, descricao = ?, preco = ?, duracao_horas = ?, id_categoria = ? WHERE id_servico = ?`,
         [
@@ -73,15 +82,8 @@ export async function atualizarServico(id_servico: number, servico: Servico): Pr
     return resultado.affectedRows;
 }
 
-export async function buscarTodosServicos(): Promise<Servico[]> {
-    const [servicos] = await pool.execute<ServicoRow[]>(
-        `SELECT ${COLUNAS} FROM servicos`
-    );
 
-    return servicos;
-}
-
-export async function excluirServico(id_servico: number): Promise<number> {
+export async function _excluirServico(id_servico: number): Promise<number> {
     const [resultado] = await pool.execute<ResultSetHeader>(
         `DELETE FROM servicos WHERE id_servico = ?`,
         [id_servico]
