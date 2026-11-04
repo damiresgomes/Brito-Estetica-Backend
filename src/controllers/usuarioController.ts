@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { cadastroUsuarioSchema } from "../schemas/usuarioSchema";
-import { cadastrar, listar, buscarUsuarioPorId, atualizar } from "../services/usuarioService";
-
+import { cadastrar, listar, buscarUsuarioPorId, atualizar, excluir } from "../services/usuarioService";
 export async function cadastrarUsuarioController(request: Request, response: Response): Promise<Response> {
   const dados = cadastroUsuarioSchema.parse(request.body);
   const { id } = await cadastrar(dados);
@@ -30,4 +29,10 @@ export async function atualizarUsuarioController(request: Request, response: Res
   const usuario = await atualizar(Number(id), request.body);
 
   return response.status(200).json(usuario);
+}
+
+export async function desativarUsuarioController(request: Request, response: Response): Promise<Response> {
+  const { id } = request.params;
+  await excluir(Number(id));
+  return response.status(200).json({ message: "Usuário desativado com sucesso" });
 }

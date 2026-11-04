@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { cpfValido } from "../validators/cpf";
+import { cnpjValido } from "../validators/cnpj";
 import { dataDeCalendarioValida, dataNaoEstaNoFuturo, temIdadeMinima } from "../validators/data";
 
 const emailSchema = z
@@ -7,7 +8,7 @@ const emailSchema = z
   .trim()
   .toLowerCase()
   .max(100, "E-mail deve ter no máximo 100 caracteres")
-  .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "E-mail é inválido");
+  .regex(/^[^\s@]+@[^\s@]+\.com(\.br)?$/i, "E-mail é inválido");
 
 const senhaSchema = z
   .string({ error: "Senha é obrigatória" })
@@ -37,6 +38,10 @@ export const cadastroUsuarioSchema = z.object({
     .string({ error: "CPF é obrigatório" })
     .max(30, "CPF deve ter no máximo 30 caracteres")
     .refine(cpfValido, "CPF inválido"),
+  cnpj: z
+    .string({ error: "CNPJ é obrigatório" })
+    .max(30, "CNPJ deve ter no máximo 30 caracteres")
+    .refine(cnpjValido, "CNPJ inválido"),
   salario: z
     .number({ error: "Salário é obrigatório" })
     .nonnegative("Salário não pode ser negativo"),
