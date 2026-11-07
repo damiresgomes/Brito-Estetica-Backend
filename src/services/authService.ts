@@ -28,7 +28,7 @@ export async function loginAuthService({ email, senha }: LoginInput): Promise<{ 
     }
 
     const token = jwt.sign(
-      { id: usuario.id, email: usuario.email, jti: randomUUID() },
+      { id: usuario.id, email: usuario.email, tipo: "usuario", papel: usuario.papel, jti: randomUUID() },
       env.JWT_SECRET,
       { expiresIn: "1h", algorithm: "HS256" }
     );
@@ -41,6 +41,7 @@ export async function loginAuthService({ email, senha }: LoginInput): Promise<{ 
     nome: string;
     email: string;
     ativo: StatusAtivo;
+    papel: "ADMIN" | "USUARIO";
   }> {
     const usuario = await buscarPorId(id);
 
@@ -53,5 +54,6 @@ export async function loginAuthService({ email, senha }: LoginInput): Promise<{ 
       nome: usuario.nome,
       email: usuario.email,
       ativo: usuario.ativo,
+      papel: usuario.papel,
     };
   }

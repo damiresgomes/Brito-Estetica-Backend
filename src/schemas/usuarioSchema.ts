@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { cpfValido } from "../validators/cpf";
-import { cnpjValido } from "../validators/cnpj";
 import { dataDeCalendarioValida, dataNaoEstaNoFuturo, temIdadeMinima } from "../validators/data";
 
 const emailSchema = z
@@ -38,10 +37,6 @@ export const cadastroUsuarioSchema = z.object({
     .string({ error: "CPF é obrigatório" })
     .max(30, "CPF deve ter no máximo 30 caracteres")
     .refine(cpfValido, "CPF inválido"),
-  cnpj: z
-    .string({ error: "CNPJ é obrigatório" })
-    .max(30, "CNPJ deve ter no máximo 30 caracteres")
-    .refine(cnpjValido, "CNPJ inválido"),
   salario: z
     .number({ error: "Salário é obrigatório" })
     .nonnegative("Salário não pode ser negativo"),
@@ -51,4 +46,11 @@ export const cadastroUsuarioSchema = z.object({
 
 export type CadastroUsuarioInput = z.infer<typeof cadastroUsuarioSchema>;
 
-export type AtualizacaoUsuarioInput = z.infer<typeof cadastroUsuarioSchema>;
+// A edicao exige novamente os dados do usuario, mas o e-mail nao pode ser enviado
+// nem alterado. A senha e opcional: se vier, sera gerado um novo hash.
+export const atualizacaoUsuarioSchema = cadastroUsuarioSchema
+  .omit({ email: true })
+  .extend({ senha: senhaSchema.optional() })
+  .strict();
+
+export type AtualizacaoUsuarioInput = z.infer<typeof atualizacaoUsuarioSchema>;

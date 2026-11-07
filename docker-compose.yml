@@ -13,7 +13,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASS}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./docker/init:/docker-entrypoint-initdb.d/brito_estetica.sql
+      - ./docker/init:/docker-entrypoint-initdb.d/
 
 volumes:
   mysql_data:

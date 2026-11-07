@@ -35,7 +35,3 @@ export async function perfil(request: Request, response: Response): Promise<Resp
 
   return response.status(200).json(usuario);
 }
-
-export async function teste(request: Request, response: Response): Promise<Response> {
-  return response.status(200).json({ usuario: request.usuario });
-}

@@ -8,7 +8,7 @@ const envSchema = z.object({
   DB_USER: z.string().min(1, "DB_USER é obrigatório"),
   DB_PASS: z.string().min(1, "DB_PASS é obrigatório"),
   DB_NAME: z.string().min(1, "DB_NAME é obrigatório"),
-  JWT_SECRET: z.string().min(1, "JWT_SECRET é obrigatório"),
+  JWT_SECRET: z.string().min(32, "JWT_SECRET deve ter no mínimo 32 caracteres"),
   CORS_ORIGINS: z
     .string()
     .trim()

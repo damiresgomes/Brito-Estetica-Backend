@@ -12,9 +12,11 @@ export interface NovoUsuario {
   datanascimento: string;
 }
 
+export type DadosAtualizacaoUsuario = Omit<NovoUsuario, "email">;
+
 interface UsuarioRow extends RowDataPacket, Usuario { }
 
-const COLUNAS = "id, nome, email, senha, cpf, salario, datanascimento, ativo";
+const COLUNAS = "id, nome, email, senha AS senhaHash, cpf, salario, datanascimento AS dataDeNascimento, ativo, papel";
 
 export async function buscarPorEmail(email: string): Promise<Usuario | null> {
   const [usuarios] = await pool.execute<UsuarioRow[]>(
@@ -62,21 +64,20 @@ export async function criarUsuario(usuario: NovoUsuario): Promise<number> {
   return resultado.insertId;
 }
 
-export async function buscarTodos(): Promise<{ id: number; nome: string; email: string }[]> {
+export async function buscarTodos(): Promise<{ id: number; nome: string; email: string; papel: string }[]> {
   const [usuarios] = await pool.execute<UsuarioRow[]>(
-    `SELECT id, nome, email FROM usuario WHERE ativo = 'Sim'`
+    `SELECT id, nome, email, papel FROM usuario WHERE ativo = 'Sim'`
   );
   return usuarios;
 }
 
-export async function atualizarUsuario(id: number, dados: NovoUsuario): Promise<void> {
+export async function atualizarUsuario(id: number, dados: DadosAtualizacaoUsuario): Promise<void> {
   await pool.execute(
     `UPDATE usuario
-        SET nome = ?, email = ?, senha = ?, cpf = ?, salario = ?, datanascimento = ?
+        SET nome = ?, senha = ?, cpf = ?, salario = ?, datanascimento = ?
       WHERE id = ?`,
     [
       dados.nome,
-      dados.email,
       dados.senhaHash,
       dados.cpf,
       dados.salario,

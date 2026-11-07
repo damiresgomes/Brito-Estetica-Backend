@@ -34,14 +34,14 @@ export class Servico {
 
     public atualizarPreco(novoPreco: number): void {
         if (novoPreco <= 0) {
-            throw new Error(`Infelizmente o preço deve ser maior que zero, valor informado: ${novoPreco}`);
+            throw new Error(`O preço deve ser maior que zero, valor informado: ${novoPreco}`);
         }
         this.preco = novoPreco;
     }
 
     public atualizarDuracao(novaDuracao: number): void {
         if (novaDuracao <= 0) {
-            throw new Error(`Infelizmente a duração deve ser maior que zero, valor informado: ${novaDuracao}`);
+            throw new Error(`O tempo de duração deve ser maior que zero, valor informado: ${novaDuracao}`);
         }
         this.duracao_horas = novaDuracao;
     }

@@ -75,7 +75,8 @@ export async function _atualizarServico(id_servico: number, servico: Servico): P
             servico.descricao,
             servico.preco,
             servico.duracao_horas,
-            servico.id_servico
+            servico.id_categoria,
+            id_servico
         ]
     );
 

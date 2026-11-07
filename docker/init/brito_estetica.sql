@@ -81,7 +81,7 @@ CREATE TABLE `agendamentos` (
   `placa_veiculo` varchar(10) DEFAULT NULL,
   `modelo_veiculo` varchar(50) DEFAULT NULL,
   `id_cliente` int(11) NOT NULL,
-  `status` enum('Pendente','Confirmado','Cancelado') NOT NULL DEFAULT 'Pendente'
+  `status` enum('Pendente','Confirmado','Em atendimento','Concluído','Cancelado') NOT NULL DEFAULT 'Pendente'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -181,7 +181,10 @@ INSERT INTO `categoria` (`id_categoria`, `nome_categoria`) VALUES
 CREATE TABLE `clientes` (
   `id_cliente` int(11) NOT NULL,
   `nome` varchar(100) NOT NULL,
-  `telefone` varchar(20) DEFAULT NULL
+  `telefone` varchar(20) DEFAULT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `senha_hash` varchar(255) DEFAULT NULL,
+  `ativo` enum('Sim','Não') NOT NULL DEFAULT 'Sim'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -274,7 +277,8 @@ CREATE TABLE `usuario` (
   `cpf` varchar(30) NOT NULL,
   `salario` double NOT NULL,
   `datanascimento` date NOT NULL,
-  `ativo` enum('Sim','Não') NOT NULL
+  `ativo` enum('Sim','Não') NOT NULL,
+  `papel` enum('ADMIN','USUARIO') NOT NULL DEFAULT 'USUARIO'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -454,6 +458,11 @@ ALTER TABLE `servicos`
 --
 ALTER TABLE `usuario`
   ADD CONSTRAINT `chk_usuario_cpf` CHECK (`cpf` REGEXP '^[0-9]{11}$');
+
+ALTER TABLE `clientes`
+  ADD UNIQUE KEY `uq_clientes_email` (`email`);
+
+UPDATE `usuario` SET `papel` = 'ADMIN' WHERE `email` = 'admin@gmail.com';
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
@@ -462,14 +471,14 @@ COMMIT;
 
 
 CREATE TABLE veiculos (
-  id bigint PRIMARY KEY,
-  usuario_id bigint NOT NULL,
-  placa VARCHAR(10) NOT NULL UNIQUE,,
+  id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  usuario_id int NOT NULL,
+  placa VARCHAR(10) NOT NULL UNIQUE,
   marca VARCHAR(80) NOT NULL,
   modelo VARCHAR(100) NOT NULL,
-  ano SMALLINNT,
+  ano SMALLINT,
   cor VARCHAR(50),
 
-  CONSTRAINT fk_agendamentos_cliente
-  FOREIGN KEY (usuario_id) REFERENCES veiculos(id)
-);
+  CONSTRAINT fk_veiculos_usuario
+  FOREIGN KEY (usuario_id) REFERENCES usuario(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

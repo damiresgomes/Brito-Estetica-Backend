@@ -7,8 +7,10 @@ import { buscarPorId } from "../repositories/usuarioRepository";
 
 export interface Token {
   id: number;
-  email: string
+  email: string;
   jti: string;
+  tipo?: "usuario";
+  papel?: "ADMIN" | "USUARIO";
   exp?: number;
   iat?: number;
 }
@@ -24,16 +26,16 @@ export async function authMiddleware(
   _response: Response,
   next: NextFunction
 ): Promise<void> {
-  const [, token] = request.headers.authorization?.split(" ") ?? [];
+  const [scheme, token] = request.headers.authorization?.split(" ") ?? [];
 
-  if (!token) {
+  if (scheme !== "Bearer" || !token) {
     throw new AppError(401, "Token não informado");
   }
 
   let payload: Token;
   try {
     payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] }) as Token;
-    if (!payload.jti) throw new Error();
+    if (!payload.jti || (payload.tipo && payload.tipo !== "usuario")) throw new Error();
   } catch {
     throw new AppError(401, "Token inválido ou expirado");
   }
@@ -52,6 +54,6 @@ export async function authMiddleware(
     throw new AppError(403, "Usuário inativo");
   }
 
-  request.usuario = payload;
+  request.usuario = { ...payload, tipo: "usuario", papel: usuario.papel };
   next();
 }
