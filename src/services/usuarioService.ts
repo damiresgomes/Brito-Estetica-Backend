@@ -1,7 +1,8 @@
 import bcrypt from "bcrypt";
 import { AppError } from "../errors/AppError";
-import { buscarPorEmail, buscarPorCpf, criarUsuario,buscarTodos, buscarPorId, atualizarUsuario,
+import { buscarPorCpf, criarUsuario,buscarTodos, buscarPorId, atualizarUsuario,
 desativarUsuario,} from "../repositories/usuarioRepository";
+import { emailEmUso } from "../repositories/contaAcessoRepository";
 import { CadastroUsuarioInput, AtualizacaoUsuarioInput } from "../schemas/usuarioSchema";
 import { normalizarCpf } from "../validators/cpf";
 
@@ -17,7 +18,7 @@ function existeDuplicidade(erro: unknown): boolean {
 }
 
 export async function cadastrar(dados: CadastroUsuarioInput): Promise<{ id: number }> {
-  if (await buscarPorEmail(dados.email)) {
+  if (await emailEmUso(dados.email)) {
     throw new AppError(409, "E-mail já cadastrado");
   }
 
@@ -80,7 +81,7 @@ export async function atualizar(id: number, dados: AtualizacaoUsuarioInput): Pro
   }
 
   if (dados.email && dados.email !== usuario.email) {
-    if (await buscarPorEmail(dados.email)) {
+    if (await emailEmUso(dados.email, id)) {
       throw new AppError(409, "E-mail já cadastrado");
     }
   }

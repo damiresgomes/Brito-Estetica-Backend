@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { cadastroServicoSchema } from "../schemas/servicoSchema";
+import { cadastroServicoSchema, listarServicosQuerySchema } from "../schemas/servicoSchema";
 import { cadastrarServico, excluirServico, atualizarServico, listarServicos } from "../services/servicoService";
 
 
@@ -15,6 +15,13 @@ export async function cadastrarServicoController(request: Request, response: Res
 
 export async function listarServicosController(request: Request, response: Response): Promise<Response> {
     const servicos = await listarServicos();
+
+    return response.status(200).json(servicos);
+}
+
+export async function listarServicosPublicosController(request: Request, response: Response): Promise<Response> {
+    const { categoria } = listarServicosQuerySchema.parse(request.query);
+    const servicos = await listarServicos(categoria);
 
     return response.status(200).json(servicos);
 }

@@ -1,7 +1,14 @@
-import { buscarServicoPorNomeExato, criarServico, _atualizarServico, _excluirServico } from "../repositories/servicoRepository";
+import {
+    buscarServicoPorNomeExato,
+    criarServico,
+    _atualizarServico,
+    _excluirServico,
+    listarServicos as listarServicosNoBanco,
+    listarServicosPorCategoria,
+    type Servico,
+} from "../repositories/servicoRepository";
 import { AppError } from "../errors/AppError";
 import { CadastroServicoInput } from "../schemas/servicoSchema";
-import { Servico } from "../entities/servico";
 
 export async function cadastrarServico(dados: CadastroServicoInput): Promise<{ id: number }> {
     const nomeServicoJaCadastrado = await buscarServicoPorNomeExato(dados.nome_servico)
@@ -21,8 +28,11 @@ export async function cadastrarServico(dados: CadastroServicoInput): Promise<{ i
     return { id };
 }
 
-export async function listarServicos(): Promise<Servico[]> {
-    return listarServicos();
+export async function listarServicos(id_categoria?: number): Promise<Servico[]> {
+    if (id_categoria === undefined) {
+        return listarServicosNoBanco();
+    }
+    return listarServicosPorCategoria(id_categoria);
 }
 
 export async function atualizarServico(id_servico: number, servico: CadastroServicoInput): Promise<number> {
@@ -43,8 +53,5 @@ export async function excluirServico(id_servico: number): Promise<number> {
         throw new AppError(404, "Serviço não encontrado.")
     }
 
-    if (servicoExcluido >= 1) {
-        throw new AppError(409, "Não foi possível excluir o serviço pois ele possui dependências.")
-    }
     return servicoExcluido;
 }
